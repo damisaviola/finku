@@ -1,0 +1,142 @@
+// Prisma Schema untuk DompetKu (PostgreSQL / Supabase)
+// Berdasarkan PRD Bagian 54 & 55 serta supabase/schema.sql
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// 1. Model User (Pengguna DompetKu)
+model User {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email      String   @unique @db.VarChar(255)
+  name       String   @db.VarChar(255)
+  avatar_url String?  @db.Text
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  // Relasi data pengguna
+  accounts     Account[]
+  categories   Category[]
+  transactions Transaction[]
+  budgets      Budget[]
+  goals        Goal[]
+
+  @@map("users")
+}
+
+// 2. Model Account (Rekening Bank / Kas / Dompet Digital)
+model Account {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id         String   @db.Uuid
+  name            String   @db.VarChar(100)
+  type            String   @db.VarChar(50) // 'Bank', 'Uang Tunai', 'Dompet Digital', 'Tabungan', 'Lainnya'
+  initial_balance Decimal  @default(0) @db.Decimal(15, 2)
+  currency        String   @default("IDR") @db.VarChar(10)
+  icon            String?  @db.VarChar(50)
+  color           String?  @db.VarChar(20)
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  // Relasi
+  user                     User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  transactions             Transaction[] @relation("SourceAccount")
+  destination_transactions Transaction[] @relation("DestinationAccount")
+
+  @@index([user_id])
+  @@map("accounts")
+}
+
+// 3. Model Category (Pos Kategori Belanja & Pendapatan)
+model Category {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String   @db.Uuid
+  name       String   @db.VarChar(100)
+  type       String   @db.VarChar(20) // 'income' atau 'expense'
+  icon       String?  @db.VarChar(50)
+  color      String?  @db.VarChar(20)
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  // Relasi
+  user         User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  budgets      Budget[]
+
+  @@index([user_id])
+  @@map("categories")
+}
+
+// 4. Model Transaction (Transaksi Keuangan)
+model Transaction {
+  id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                String   @db.Uuid
+  type                   String   @db.VarChar(20) // 'income', 'expense', 'transfer'
+  amount                 Decimal  @db.Decimal(15, 2)
+  account_id             String   @db.Uuid
+  destination_account_id String?  @db.Uuid
+  category_id            String?  @db.Uuid
+  description            String   @db.Text
+  date                   DateTime @db.Date
+  notes                  String?  @db.Text
+  created_at             DateTime @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  // Relasi
+  user                User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  account             Account   @relation("SourceAccount", fields: [account_id], references: [id], onDelete: Restrict)
+  destination_account Account?  @relation("DestinationAccount", fields: [destination_account_id], references: [id], onDelete: Restrict)
+  category            Category? @relation(fields: [category_id], references: [id], onDelete: SetNull)
+
+  @@index([user_id])
+  @@index([date])
+  @@index([account_id])
+  @@index([category_id])
+  @@index([type])
+  @@map("transactions")
+}
+
+// 5. Model Budget (Pagu Anggaran Bulanan)
+model Budget {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id     String   @db.Uuid
+  category_id String   @db.Uuid
+  amount      Decimal  @db.Decimal(15, 2)
+  month       String   @db.VarChar(7) // Format YYYY-MM (contoh: '2026-09')
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  // Relasi
+  user     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [category_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, category_id, month])
+  @@index([user_id])
+  @@map("budgets")
+}
+
+// 6. Model Goal (Target Tabungan Finansial)
+model Goal {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id        String    @db.Uuid
+  name           String    @db.VarChar(150)
+  target_amount  Decimal   @db.Decimal(15, 2)
+  current_amount Decimal   @default(0) @db.Decimal(15, 2)
+  target_date    DateTime? @db.Date
+  description    String?   @db.Text
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+
+  // Relasi
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@map("goals")
+}
