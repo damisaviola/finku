@@ -18,6 +18,8 @@ import {
   Target,
   Check,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useDompetKu } from '@/lib/store';
 import { signInWithGoogle, registerUserWithEmail } from '@/lib/supabase/auth';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
@@ -82,11 +84,11 @@ export default function RegisterPage() {
   }, [passwordCriteria]);
 
   const strengthConfig = useMemo(() => {
-    if (password.length === 0) return { label: 'Belum diisi', color: 'bg-zinc-200 dark:bg-zinc-800' };
-    if (passwordScore <= 1) return { label: 'Lemah', color: 'bg-zinc-400 dark:bg-zinc-600' };
-    if (passwordScore === 2) return { label: 'Cukup', color: 'bg-zinc-600 dark:bg-zinc-400' };
-    if (passwordScore === 3) return { label: 'Kuat', color: 'bg-zinc-800 dark:bg-zinc-200' };
-    return { label: 'Sangat Kuat', color: 'bg-zinc-950 dark:bg-white' };
+    if (password.length === 0) return { label: 'Belum diisi', color: 'bg-zinc-200 dark:bg-zinc-800', textColor: 'text-zinc-400' };
+    if (passwordScore <= 1) return { label: 'Sangat Lemah', color: 'bg-rose-500', textColor: 'text-rose-500' };
+    if (passwordScore === 2) return { label: 'Cukup', color: 'bg-amber-500', textColor: 'text-amber-500' };
+    if (passwordScore === 3) return { label: 'Kuat', color: 'bg-amber-600', textColor: 'text-amber-600' };
+    return { label: 'Sangat Kuat', color: 'bg-emerald-500', textColor: 'text-emerald-500' };
   }, [password.length, passwordScore]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -172,23 +174,28 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 flex flex-col justify-between transition-colors">
-      {/* Top Clean Minimal Navbar */}
-      <header className="w-full px-5 py-4 sm:px-8 flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+      {/* Navbar Sinkron dengan Sidebar Dashboard */}
+      <header className="w-full px-5 py-3.5 sm:px-8 flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
         <Link href="/" className="flex items-center gap-2.5">
-          <div className="h-8 w-8 rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 flex items-center justify-center">
-            <Wallet className="h-4 w-4 stroke-[2.2]" />
+          <div className="h-8 w-8 rounded-lg bg-amber-500 flex items-center justify-center text-white shadow-xs">
+            <Wallet className="h-4 w-4 stroke-[2.5]" />
           </div>
-          <span className="text-base font-bold tracking-tight text-zinc-950 dark:text-white">
-            DompetKu
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-base font-bold tracking-tight text-zinc-950 dark:text-white leading-none">
+              DompetKu
+            </span>
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">
+              v1.0
+            </span>
+          </div>
         </Link>
 
         <div className="flex items-center gap-3">
           <div className="hidden sm:flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
-            <span>Sudah punya akun?</span>
+            <span>Sudah memiliki akun?</span>
             <Link
               href="/login"
-              className="font-medium text-zinc-900 dark:text-white hover:underline transition-colors"
+              className="font-semibold text-amber-600 dark:text-amber-400 hover:underline transition-colors"
             >
               Masuk
             </Link>
@@ -198,28 +205,28 @@ export default function RegisterPage() {
             type="button"
             onClick={toggleTheme}
             aria-label="Ganti tema tampilan"
-            className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 transition-colors shadow-xs cursor-pointer"
             title={isDarkMode ? 'Mode Terang' : 'Mode Gelap'}
           >
             {isDarkMode ? (
-              <Sun className="h-4 w-4" />
+              <Sun className="h-4 w-4 text-amber-400" />
             ) : (
-              <Moon className="h-4 w-4" />
+              <Moon className="h-4 w-4 text-zinc-600" />
             )}
           </button>
         </div>
       </header>
 
-      {/* Main Content Area */}
+      {/* Main Content Showcase */}
       <main className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-10 my-auto">
         <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
           
-          {/* Left Column: Clean Editorial Overview */}
+          {/* Kolom Kiri: Showcase Finansial Sinkron dengan Dashboard */}
           <div className="hidden lg:flex lg:col-span-6 flex-col justify-center space-y-6 pr-4">
             <div className="space-y-3">
-              <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 w-fit">
+              <Badge variant="primary" size="sm">
                 <span>Pendaftaran Akun Baru</span>
-              </div>
+              </Badge>
               <h1 className="text-3xl lg:text-4xl font-bold tracking-tight text-zinc-950 dark:text-white leading-tight">
                 Mulai kelola keuangan pribadi dengan rapi dan terencana.
               </h1>
@@ -228,107 +235,114 @@ export default function RegisterPage() {
               </p>
             </div>
 
-            {/* Clean Feature Overview Card (No glossy effects) */}
-            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800">
-                <div className="flex items-center gap-2">
-                  <Target className="h-4 w-4 text-zinc-500" />
-                  <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                    Target Tabungan: Dana Darurat
-                  </span>
+            {/* Widget Target & Anggaran (Sinkron dengan Komponen Dashboard) */}
+            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-xs ring-1 ring-zinc-950/5 dark:ring-white/5 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800/80">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-7 w-7 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                    <Target className="h-3.5 w-3.5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                      Target Tabungan: Dana Darurat
+                    </p>
+                    <p className="text-[10px] text-zinc-400">Target Finansial 2026</p>
+                  </div>
                 </div>
-                <span className="text-xs font-mono font-medium text-zinc-500">
-                  80% tercapai
-                </span>
+                <Badge variant="primary" size="sm">
+                  <span>80% Tercapai</span>
+                </Badge>
               </div>
 
               <div>
                 <div className="flex items-baseline justify-between text-xs mb-1.5">
-                  <span className="text-zinc-500">Terkumpul</span>
+                  <span className="text-zinc-500 dark:text-zinc-400">Terkumpul</span>
                   <span className="font-mono font-bold text-zinc-950 dark:text-white">
                     Rp 24.000.000 / Rp 30.000.000
                   </span>
                 </div>
-                {/* Flat clean progress bar */}
+                {/* Progress bar sinkron dengan aksen amber dashboard */}
                 <div className="w-full h-2 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
-                  <div className="h-full bg-zinc-900 dark:bg-white w-[80%] rounded-full" />
+                  <div className="h-full bg-amber-500 w-[80%] rounded-full transition-all" />
                 </div>
               </div>
 
-              <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between text-xs text-zinc-500">
+              <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
                 <span>Pagu Anggaran Bulanan</span>
-                <span className="text-zinc-900 dark:text-white font-medium">Status Terkendali</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold font-mono">
+                  Hemat Rp 1.450.000
+                </span>
               </div>
             </div>
 
-            {/* Simple Value Props */}
+            {/* Checklist Fitur */}
             <div className="grid grid-cols-2 gap-3 pt-1 text-xs text-zinc-600 dark:text-zinc-400">
               <div className="flex items-center gap-2">
-                <Check className="h-3.5 w-3.5 text-zinc-900 dark:text-white shrink-0" />
+                <Check className="h-3.5 w-3.5 text-amber-500 shrink-0" />
                 <span>Format Standar Bank PDF</span>
               </div>
               <div className="flex items-center gap-2">
-                <Check className="h-3.5 w-3.5 text-zinc-900 dark:text-white shrink-0" />
+                <Check className="h-3.5 w-3.5 text-amber-500 shrink-0" />
                 <span>Proteksi Defisit Saldo</span>
               </div>
               <div className="flex items-center gap-2">
-                <Check className="h-3.5 w-3.5 text-zinc-900 dark:text-white shrink-0" />
+                <Check className="h-3.5 w-3.5 text-amber-500 shrink-0" />
                 <span>Tanpa Iklan Pihak Ketiga</span>
               </div>
               <div className="flex items-center gap-2">
-                <Check className="h-3.5 w-3.5 text-zinc-900 dark:text-white shrink-0" />
+                <Check className="h-3.5 w-3.5 text-amber-500 shrink-0" />
                 <span>Penyimpanan Data Privat</span>
               </div>
             </div>
           </div>
 
-          {/* Right Column: Register Form Card */}
+          {/* Kolom Kanan: Kartu Form Pendaftaran */}
           <div className="w-full max-w-md mx-auto lg:col-span-6">
             {isSuccess ? (
-              <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 text-center space-y-4">
-                <div className="h-12 w-12 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white flex items-center justify-center mx-auto">
+              <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 text-center space-y-4 shadow-xs ring-1 ring-zinc-950/5 dark:ring-white/5">
+                <div className="h-12 w-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-center mx-auto shadow-xs">
                   <CheckCircle2 className="h-6 w-6" />
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-zinc-950 dark:text-white">
-                    Pendaftaran Berhasil
+                    Pendaftaran Berhasil!
                   </h2>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 max-w-xs mx-auto">
-                    Akun Anda telah dibuat. Mengalihkan Anda langsung ke dashboard...
+                    Akun Anda telah siap. Mengalihkan Anda langsung ke dashboard...
                   </p>
                 </div>
-                <button
-                  type="button"
+                <Button
+                  variant="primary"
+                  className="w-full h-10 font-semibold"
                   onClick={() => router.push('/dashboard')}
-                  className="w-full h-10 rounded-lg font-semibold text-xs text-white dark:text-zinc-950 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <span>Buka Dashboard</span>
-                  <ArrowRight className="h-4 w-4" />
-                </button>
+                  <ArrowRight className="h-4 w-4 ml-1.5" />
+                </Button>
               </div>
             ) : (
-              <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 sm:p-8 space-y-5">
+              <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 sm:p-8 shadow-xs ring-1 ring-zinc-950/5 dark:ring-white/5 space-y-5">
                 
-                {/* Clean Segmented Tab Switcher */}
-                <div className="p-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 grid grid-cols-2 gap-1 text-xs font-medium">
+                {/* Tab Switcher */}
+                <div className="p-1 rounded-lg bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 grid grid-cols-2 gap-1 text-xs font-medium">
                   <Link
                     href="/login"
-                    className="py-1.5 text-center rounded-md text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white transition-colors"
+                    className="py-1.5 text-center rounded-md text-zinc-500 hover:text-amber-600 dark:text-zinc-400 dark:hover:text-amber-400 transition-colors"
                   >
                     Masuk Akun
                   </Link>
-                  <div className="py-1.5 text-center rounded-md bg-white dark:bg-zinc-900 text-zinc-950 dark:text-white font-semibold border border-zinc-200/50 dark:border-zinc-700/50">
+                  <div className="py-1.5 text-center rounded-md bg-white dark:bg-zinc-900 text-zinc-950 dark:text-white font-semibold shadow-xs border border-zinc-200/50 dark:border-zinc-700/50">
                     Daftar Baru
                   </div>
                 </div>
 
-                {/* Title */}
+                {/* Title & Deskripsi */}
                 <div>
                   <h2 className="text-xl font-bold tracking-tight text-zinc-950 dark:text-white">
                     Buat Akun Baru
                   </h2>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                    Isi rincian informasi di bawah untuk mendaftarkan akun.
+                    Isi informasi di bawah untuk memulai pencatatan keuangan.
                   </p>
                 </div>
 
@@ -340,11 +354,11 @@ export default function RegisterPage() {
                   </div>
                 )}
 
-                {/* Form */}
+                {/* Formulir Pendaftaran */}
                 <form onSubmit={handleSubmit} autoComplete="on" className="space-y-3.5">
-                  {/* Name */}
+                  {/* Kolom Nama */}
                   <div className="space-y-1">
-                    <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                    <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                       Nama Lengkap <span className="text-rose-500">*</span>
                     </label>
                     <div className="relative flex items-center">
@@ -358,7 +372,7 @@ export default function RegisterPage() {
                           setName(e.target.value);
                           if (errors.name) setErrors((prev) => ({ ...prev, name: '' }));
                         }}
-                        className={`w-full rounded-lg border pl-9 pr-3 py-2 text-xs sm:text-sm bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-950 dark:focus:ring-white focus:border-zinc-950 dark:focus:border-white transition-colors ${
+                        className={`w-full rounded-lg border pl-9 pr-3 py-2 text-xs sm:text-sm bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-colors ${
                           errors.name
                             ? 'border-rose-500'
                             : 'border-zinc-300 dark:border-zinc-700'
@@ -372,9 +386,9 @@ export default function RegisterPage() {
                     )}
                   </div>
 
-                  {/* Email */}
+                  {/* Kolom Email */}
                   <div className="space-y-1">
-                    <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                    <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                       Alamat Email <span className="text-rose-500">*</span>
                     </label>
                     <div className="relative flex items-center">
@@ -388,7 +402,7 @@ export default function RegisterPage() {
                           setEmail(e.target.value);
                           if (errors.email) setErrors((prev) => ({ ...prev, email: '' }));
                         }}
-                        className={`w-full rounded-lg border pl-9 pr-3 py-2 text-xs sm:text-sm bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-950 dark:focus:ring-white focus:border-zinc-950 dark:focus:border-white transition-colors ${
+                        className={`w-full rounded-lg border pl-9 pr-3 py-2 text-xs sm:text-sm bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-colors ${
                           errors.email
                             ? 'border-rose-500'
                             : 'border-zinc-300 dark:border-zinc-700'
@@ -402,9 +416,9 @@ export default function RegisterPage() {
                     )}
                   </div>
 
-                  {/* Password */}
+                  {/* Kolom Kata Sandi */}
                   <div className="space-y-1">
-                    <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                    <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                       Kata Sandi <span className="text-rose-500">*</span>
                     </label>
                     <div className="relative flex items-center">
@@ -418,7 +432,7 @@ export default function RegisterPage() {
                           setPassword(e.target.value);
                           if (errors.password) setErrors((prev) => ({ ...prev, password: '' }));
                         }}
-                        className={`w-full rounded-lg border pl-9 pr-10 py-2 text-xs sm:text-sm bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-950 dark:focus:ring-white focus:border-zinc-950 dark:focus:border-white transition-colors ${
+                        className={`w-full rounded-lg border pl-9 pr-10 py-2 text-xs sm:text-sm bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-colors ${
                           errors.password
                             ? 'border-rose-500'
                             : 'border-zinc-300 dark:border-zinc-700'
@@ -438,12 +452,12 @@ export default function RegisterPage() {
                       </button>
                     </div>
 
-                    {/* Password Strength Indicator (Monochrome / Neutral) */}
+                    {/* Indikator Kekuatan Sandi Sinkron */}
                     {password.length > 0 && (
-                      <div className="space-y-1.5 pt-1">
+                      <div className="space-y-1 pt-1">
                         <div className="flex items-center justify-between text-[11px] text-zinc-500">
                           <span>Kekuatan sandi:</span>
-                          <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                          <span className={`font-semibold ${strengthConfig.textColor}`}>
                             {strengthConfig.label}
                           </span>
                         </div>
@@ -469,9 +483,9 @@ export default function RegisterPage() {
                     )}
                   </div>
 
-                  {/* Confirm Password */}
+                  {/* Konfirmasi Sandi */}
                   <div className="space-y-1">
-                    <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                    <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                       Konfirmasi Kata Sandi <span className="text-rose-500">*</span>
                     </label>
                     <div className="relative flex items-center">
@@ -487,7 +501,7 @@ export default function RegisterPage() {
                             setErrors((prev) => ({ ...prev, confirmPassword: '' }));
                           }
                         }}
-                        className={`w-full rounded-lg border pl-9 pr-10 py-2 text-xs sm:text-sm bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-950 dark:focus:ring-white focus:border-zinc-950 dark:focus:border-white transition-colors ${
+                        className={`w-full rounded-lg border pl-9 pr-10 py-2 text-xs sm:text-sm bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-colors ${
                           errors.confirmPassword
                             ? 'border-rose-500'
                             : 'border-zinc-300 dark:border-zinc-700'
@@ -513,7 +527,7 @@ export default function RegisterPage() {
                     )}
                   </div>
 
-                  {/* Terms */}
+                  {/* Syarat & Ketentuan */}
                   <div className="space-y-1 pt-0.5">
                     <label className="flex items-start gap-2 cursor-pointer text-xs text-zinc-600 dark:text-zinc-400 select-none">
                       <input
@@ -523,7 +537,7 @@ export default function RegisterPage() {
                           setTerms(e.target.checked);
                           if (errors.terms) setErrors((prev) => ({ ...prev, terms: '' }));
                         }}
-                        className="mt-0.5 rounded border-zinc-300 dark:border-zinc-700 text-zinc-900 focus:ring-zinc-900 dark:focus:ring-white"
+                        className="mt-0.5 rounded border-zinc-300 dark:border-zinc-700 text-amber-600 focus:ring-amber-500"
                       />
                       <span className="leading-snug">
                         Saya menyetujui syarat layanan dan kebijakan privasi data DompetKu.
@@ -536,24 +550,20 @@ export default function RegisterPage() {
                     )}
                   </div>
 
-                  {/* Clean Submit Button */}
-                  <button
+                  {/* Tombol Daftar Utama Sinkron dengan Tombol Dashboard */}
+                  <Button
                     type="submit"
-                    disabled={isLoading || isGoogleLoading}
-                    className="w-full h-10 rounded-lg font-semibold text-xs sm:text-sm text-white dark:text-zinc-950 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-1"
+                    variant="primary"
+                    className="w-full h-10 font-semibold shadow-xs mt-1"
+                    isLoading={isLoading}
+                    disabled={isGoogleLoading}
                   >
-                    {isLoading ? (
-                      <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <>
-                        <span>Daftar Akun Baru</span>
-                        <ArrowRight className="h-4 w-4" />
-                      </>
-                    )}
-                  </button>
+                    <span>Daftar Akun Baru</span>
+                    <ArrowRight className="h-4 w-4 ml-1.5" />
+                  </Button>
                 </form>
 
-                {/* Or Divider */}
+                {/* Pemisah */}
                 <div className="relative flex items-center py-0.5">
                   <div className="flex-grow border-t border-zinc-200 dark:border-zinc-800" />
                   <span className="flex-shrink mx-3 text-[10px] font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
@@ -562,27 +572,27 @@ export default function RegisterPage() {
                   <div className="flex-grow border-t border-zinc-200 dark:border-zinc-800" />
                 </div>
 
-                {/* Google Button */}
+                {/* Tombol Google */}
                 <button
                   type="button"
                   onClick={handleGoogleRegister}
                   disabled={isLoading || isGoogleLoading}
-                  className="w-full flex items-center justify-center gap-2.5 h-10 px-4 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 hover:bg-zinc-50 dark:hover:bg-zinc-900 text-zinc-800 dark:text-zinc-100 font-medium text-xs sm:text-sm transition-colors cursor-pointer disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-2.5 h-10 px-4 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-700/80 text-zinc-800 dark:text-zinc-100 font-semibold text-xs sm:text-sm shadow-xs transition-colors cursor-pointer disabled:opacity-50"
                 >
                   {isGoogleLoading ? (
-                    <div className="h-4 w-4 border-2 border-zinc-900 dark:border-white border-t-transparent rounded-full animate-spin" />
+                    <div className="h-4 w-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
                   ) : (
                     <GoogleIcon className="h-4 w-4 shrink-0" />
                   )}
                   <span>Daftar dengan Google</span>
                 </button>
 
-                {/* Sign In Link */}
-                <div className="pt-1 text-center text-xs text-zinc-500 dark:text-zinc-400 border-t border-zinc-100 dark:border-zinc-800">
+                {/* Tautan Masuk */}
+                <div className="pt-1 text-center text-xs text-zinc-500 dark:text-zinc-400 border-t border-zinc-100 dark:border-zinc-800/80">
                   Sudah memiliki akun?{' '}
                   <Link
                     href="/login"
-                    className="text-zinc-900 dark:text-white font-semibold hover:underline ml-1"
+                    className="text-amber-600 dark:text-amber-400 font-semibold hover:underline ml-1"
                   >
                     Masuk di sini
                   </Link>
@@ -597,7 +607,7 @@ export default function RegisterPage() {
 
       {/* Footer */}
       <footer className="w-full px-5 py-3.5 text-center text-[11px] text-zinc-400 dark:text-zinc-500 border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-        © 2026 DompetKu • Pelacak Keuangan Pribadi
+        © 2026 DompetKu • Panel Keuangan Pribadi
       </footer>
 
       {/* Supabase OAuth Setup Guide Modal */}
