@@ -3,18 +3,16 @@
 import React from 'react';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Key, Database, Sparkles, ExternalLink, CheckCircle2 } from 'lucide-react';
+import { Key, Database, ExternalLink, CheckCircle2 } from 'lucide-react';
 
 interface SupabaseConfigModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onUseDemo?: () => void;
 }
 
 export function SupabaseConfigModal({
   isOpen,
   onClose,
-  onUseDemo,
 }: SupabaseConfigModalProps) {
   return (
     <Dialog
@@ -84,23 +82,7 @@ export function SupabaseConfigModal({
         </div>
       </div>
 
-      <DialogFooter className="justify-between sm:justify-between">
-        {onUseDemo ? (
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => {
-              onClose();
-              onUseDemo();
-            }}
-            className="inline-flex items-center gap-1.5 text-xs"
-          >
-            <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-            <span>Gunakan Akun Demo</span>
-          </Button>
-        ) : (
-          <div />
-        )}
+      <DialogFooter className="justify-end sm:justify-end">
         <Button type="button" variant="primary" onClick={onClose} className="text-xs">
           Mengerti, Tutup
         </Button>

@@ -45,7 +45,7 @@ function GoogleIcon({ className = 'h-4 w-4' }: { className?: string }) {
 
 export default function LoginPage() {
   const router = useRouter();
-  const { setCleanUserSession, resetToDemoData, showToast, isDarkMode, toggleTheme } = useDompetKu();
+  const { setCleanUserSession, showToast, isDarkMode, toggleTheme } = useDompetKu();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -79,15 +79,6 @@ export default function LoginPage() {
     setErrors({});
 
     const normalizedEmail = email.trim().toLowerCase();
-    if (normalizedEmail === 'budi.santoso@example.com') {
-      setTimeout(() => {
-        resetToDemoData();
-        setIsLoading(false);
-        showToast('Masuk sebagai Akun Demo (Budi Santoso)', 'success');
-        router.push('/dashboard');
-      }, 350);
-      return;
-    }
 
     try {
       const { error, user, accounts } = await loginUserWithEmail(normalizedEmail, password);
@@ -125,18 +116,6 @@ export default function LoginPage() {
       setIsGoogleLoading(false);
       showToast(error.message, 'error');
     }
-  };
-
-  const handleQuickDemoLogin = () => {
-    setEmail('budi.santoso@example.com');
-    setPassword('DemoPassword123');
-    setIsLoading(true);
-    setTimeout(() => {
-      resetToDemoData();
-      setIsLoading(false);
-      showToast('Masuk sebagai Akun Demo (Budi Santoso)', 'success');
-      router.push('/dashboard');
-    }, 300);
   };
 
   return (
@@ -327,19 +306,6 @@ export default function LoginPage() {
               )}
               <span>Masuk dengan Google</span>
             </button>
-
-            {/* Quick Demo Helper */}
-            <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800/80 text-center">
-              <button
-                type="button"
-                onClick={handleQuickDemoLogin}
-                disabled={isLoading || isGoogleLoading}
-                className="text-xs text-zinc-500 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors cursor-pointer"
-              >
-                Ingin mencoba langsung? <span className="font-semibold underline">Gunakan Akun Demo</span>
-              </button>
-            </div>
-
           </div>
 
           {/* Registration Link Footer */}
@@ -365,7 +331,6 @@ export default function LoginPage() {
       <SupabaseConfigModal
         isOpen={showConfigModal}
         onClose={() => setShowConfigModal(false)}
-        onUseDemo={handleQuickDemoLogin}
       />
     </div>
   );

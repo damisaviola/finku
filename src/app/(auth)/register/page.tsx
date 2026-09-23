@@ -449,7 +449,6 @@ export default function RegisterPage() {
       <SupabaseConfigModal
         isOpen={showConfigModal}
         onClose={() => setShowConfigModal(false)}
-        onUseDemo={() => router.push('/dashboard')}
       />
     </div>
   );

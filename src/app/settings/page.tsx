@@ -613,7 +613,7 @@ export default function SettingsPage() {
         )}
       </div>
 
-      {/* 4. KARTU ATUR ULANG DATA DEMO */}
+      {/* 4. KARTU ATUR ULANG DATA FINANSIAL */}
       <div className="rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/20 dark:bg-rose-950/15 p-6 sm:p-7 shadow-xs ring-1 ring-rose-950/5 dark:ring-white/5 space-y-4">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 flex items-center justify-center shrink-0">
@@ -621,29 +621,29 @@ export default function SettingsPage() {
           </div>
           <div>
             <h3 className="text-base font-bold tracking-tight text-rose-700 dark:text-rose-400">
-              Atur Ulang Data Demo
+              Atur Ulang Data Finansial
             </h3>
             <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              Kembalikan seluruh rekening, mutasi transaksi, pagu anggaran, dan target tabungan ke kondisi awal PRD.
+              Kosongkan seluruh riwayat mutasi transaksi, pagu anggaran, dan target tabungan Anda ke kondisi bersih.
             </p>
           </div>
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-rose-100 dark:border-rose-900/30">
           <span className="text-xs text-zinc-500 dark:text-zinc-400">
-            ⚠️ Tindakan ini akan menimpa data tersimpan di peramban ini.
+            ⚠️ Tindakan ini akan menghapus mutasi transaksi lokal di peramban ini.
           </span>
           <Button
             variant="danger"
             className="h-9 px-4 text-xs font-semibold shadow-xs self-start sm:self-auto"
             onClick={() => {
-              if (window.confirm('Kembalikan semua rekening dan transaksi ke data demo awal?')) {
+              if (window.confirm('Hapus seluruh riwayat transaksi, anggaran, dan target tabungan Anda?')) {
                 resetToDemoData();
               }
             }}
           >
             <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
-            <span>Reset ke Data Demo</span>
+            <span>Bersihkan Data Finansial</span>
           </Button>
         </div>
       </div>

@@ -3,7 +3,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Account, Category, Transaction, Budget, Goal, UserProfile, TransactionType, FontSize } from '@/types';
 import {
-  INITIAL_USER,
   INITIAL_ACCOUNTS,
   INITIAL_CATEGORIES,
   INITIAL_TRANSACTIONS,
@@ -27,6 +26,7 @@ interface DompetKuContextType {
   transactions: Transaction[];
   budgets: Budget[];
   goals: Goal[];
+  isClient: boolean;
   activeMonth: string;
   setActiveMonth: (month: string) => void;
   
@@ -75,6 +75,7 @@ interface DompetKuContextType {
   setCleanUserSession: (profile: UserProfile, initialAccounts?: Account[]) => void;
 
   updateUser: (profile: Partial<UserProfile>) => void;
+  resetAllFinancialData: () => void;
   resetToDemoData: () => void;
   logout: () => Promise<void>;
 
@@ -664,36 +665,28 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const resetToDemoData = useCallback(() => {
-    setAccounts(INITIAL_ACCOUNTS);
+  const resetAllFinancialData = useCallback(() => {
+    setAccounts(DEFAULT_CLEAN_ACCOUNTS);
     setCategories(INITIAL_CATEGORIES);
-    setTransactions(INITIAL_TRANSACTIONS);
-    setBudgets(INITIAL_BUDGETS);
-    setGoals(INITIAL_GOALS);
-    setUser(INITIAL_USER);
-    setThemeState(INITIAL_USER.theme);
-    setFontSizeState(INITIAL_USER.fontSize || 'normal');
+    setTransactions([]);
+    setBudgets([]);
+    setGoals([]);
     try {
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_user`, JSON.stringify(INITIAL_USER));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_accounts`, JSON.stringify(INITIAL_ACCOUNTS));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_transactions`, JSON.stringify(INITIAL_TRANSACTIONS));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_budgets`, JSON.stringify(INITIAL_BUDGETS));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_goals`, JSON.stringify(INITIAL_GOALS));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_fontSize`, INITIAL_USER.fontSize || 'normal');
+      localStorage.setItem(`${STORAGE_KEY_PREFIX}_accounts`, JSON.stringify(DEFAULT_CLEAN_ACCOUNTS));
+      localStorage.setItem(`${STORAGE_KEY_PREFIX}_categories`, JSON.stringify(INITIAL_CATEGORIES));
+      localStorage.setItem(`${STORAGE_KEY_PREFIX}_transactions`, JSON.stringify([]));
+      localStorage.setItem(`${STORAGE_KEY_PREFIX}_budgets`, JSON.stringify([]));
+      localStorage.setItem(`${STORAGE_KEY_PREFIX}_goals`, JSON.stringify([]));
     } catch (e) {
-      console.warn('Failed to reset demo data in localStorage:', e);
+      console.warn('Failed to reset financial data in localStorage:', e);
     }
-    showToast('Mode Uji Coba Demo aktif (Data Budi Santoso dimuat).', 'info');
+    showToast('Seluruh mutasi transaksi dan rekening telah dibersihkan.', 'info');
   }, [showToast]);
+
+  const resetToDemoData = resetAllFinancialData;
 
   const loginUser = useCallback(
     (email: string, name?: string) => {
-      const trimmedEmail = email.trim().toLowerCase();
-      if (trimmedEmail === 'budi.santoso@example.com') {
-        resetToDemoData();
-        return;
-      }
-
       const cleanUser: UserProfile = {
         id: `user-${Date.now()}`,
         name: name?.trim() || email.split('@')[0],
@@ -720,7 +713,7 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
         console.warn('Failed to save clean session to localStorage:', e);
       }
     },
-    [resetToDemoData]
+    []
   );
 
   const registerUser = useCallback((name: string, email: string) => {
@@ -801,6 +794,7 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
         transactions,
         budgets,
         goals,
+        isClient,
         activeMonth,
         setActiveMonth,
         theme,
@@ -835,6 +829,7 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
         registerUser,
         setCleanUserSession,
         updateUser,
+        resetAllFinancialData,
         resetToDemoData,
         logout,
         toasts,
