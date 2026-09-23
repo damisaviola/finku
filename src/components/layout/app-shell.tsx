@@ -19,7 +19,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     pathname.startsWith('/login') ||
     pathname.startsWith('/register') ||
     pathname.startsWith('/forgot-password') ||
-    pathname.startsWith('/reset-password');
+    pathname.startsWith('/reset-password') ||
+    pathname.startsWith('/auth');
 
   useEffect(() => {
     if (!isClient) return;
