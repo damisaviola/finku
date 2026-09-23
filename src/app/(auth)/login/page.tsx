@@ -81,7 +81,8 @@ export default function LoginPage() {
     const normalizedEmail = email.trim().toLowerCase();
 
     try {
-      const { error, user, accounts } = await loginUserWithEmail(normalizedEmail, password);
+      const { error, user, accounts, categories, transactions, budgets, goals } =
+        await loginUserWithEmail(normalizedEmail, password);
 
       if (error) {
         setIsLoading(false);
@@ -91,7 +92,7 @@ export default function LoginPage() {
       }
 
       if (user) {
-        setCleanUserSession(user, accounts as any);
+        setCleanUserSession(user, accounts, categories, transactions, budgets, goals, []);
         setIsLoading(false);
         showToast('Selamat datang kembali di DompetKu!', 'success');
         router.push('/dashboard');

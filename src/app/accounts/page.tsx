@@ -139,7 +139,26 @@ export default function AccountsPage() {
       </div>
 
       {/* Filament Accounts Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {accounts.length === 0 ? (
+        <div className="p-12 text-center rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/40">
+          <div className="h-12 w-12 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-400 mx-auto flex items-center justify-center mb-3">
+            <Wallet className="h-6 w-6" />
+          </div>
+          <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            Belum ada rekening dibuat
+          </h4>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 max-w-sm mx-auto">
+            Mulai tambahkan rekening bank, dompet digital, atau uang tunai untuk mencatat transaksi keuangan Anda.
+          </p>
+          <div className="mt-4 flex items-center justify-center">
+            <Button onClick={() => handleOpenModal()} size="sm" variant="primary">
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              <span>Tambah Rekening Baru</span>
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {accounts.map((acc) => {
           const currentBalance = calculateAccountBalance(acc, transactions);
 
@@ -255,6 +274,7 @@ export default function AccountsPage() {
           );
         })}
       </div>
+      )}
 
       {/* Account Add/Edit Modal */}
       <Dialog

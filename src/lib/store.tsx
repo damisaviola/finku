@@ -94,7 +94,15 @@ interface DompetKuContextType {
 
   loginUser: (email: string, name?: string) => void;
   registerUser: (name: string, email: string) => void;
-  setCleanUserSession: (profile: UserProfile, initialAccounts?: Account[]) => void;
+  setCleanUserSession: (
+    profile: UserProfile,
+    initialAccounts?: Account[],
+    initialCategories?: Category[],
+    initialTransactions?: Transaction[],
+    initialBudgets?: Budget[],
+    initialGoals?: Goal[],
+    initialDebts?: Debt[]
+  ) => void;
 
   updateUser: (profile: Partial<UserProfile>) => void;
   resetAllFinancialData: () => void;
@@ -107,20 +115,7 @@ interface DompetKuContextType {
   removeToast: (id: string) => void;
 }
 
-export const DEFAULT_CLEAN_ACCOUNTS: Account[] = [
-  {
-    id: 'acc-cash-clean',
-    name: 'Kas Tunai',
-    type: 'Uang Tunai',
-    initial_balance: 0,
-    currency: 'IDR',
-    color: '#10b981',
-    icon: 'Banknote',
-    is_active: true,
-    created_at: '2026-09-01T00:00:00.000Z',
-    updated_at: '2026-09-01T00:00:00.000Z',
-  },
-];
+export const DEFAULT_CLEAN_ACCOUNTS: Account[] = [];
 
 const DompetKuContext = createContext<DompetKuContextType | undefined>(undefined);
 
@@ -129,12 +124,12 @@ const STORAGE_KEY_PREFIX = 'dompetku_data_v1';
 export function DompetKuProvider({ children }: { children: React.ReactNode }) {
   const [isClient, setIsClient] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [accounts, setAccounts] = useState<Account[]>(DEFAULT_CLEAN_ACCOUNTS);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
-  const [debts, setDebts] = useState<Debt[]>(INITIAL_DEBTS);
+  const [debts, setDebts] = useState<Debt[]>([]);
   const [activeMonth, setActiveMonth] = useState<string>('2026-09');
 
   // Theme State
@@ -313,19 +308,24 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
           const savedDebts = localStorage.getItem(`${STORAGE_KEY_PREFIX}_debts`);
           if (savedDebts && savedDebts !== 'null' && savedDebts !== 'undefined') {
             const parsed = JSON.parse(savedDebts);
-            if (Array.isArray(parsed)) setDebts(parsed);
+            if (Array.isArray(parsed)) {
+              const cleanDebts = parsed.filter(
+                (d: Debt) => !['debt-rec-1', 'debt-rec-2', 'debt-pay-1', 'debt-pay-2'].includes(d.id)
+              );
+              setDebts(cleanDebts);
+            }
           } else {
-            setDebts(INITIAL_DEBTS);
+            setDebts([]);
           }
         }
       } else {
         // Unauthenticated visitor: start with clean slate
         setUser(null);
-        setAccounts(DEFAULT_CLEAN_ACCOUNTS);
+        setAccounts([]);
         setTransactions([]);
         setBudgets([]);
         setGoals([]);
-        setDebts(INITIAL_DEBTS);
+        setDebts([]);
       }
 
       const savedTheme = localStorage.getItem(`${STORAGE_KEY_PREFIX}_theme`) as 'light' | 'dark' | 'system';
@@ -365,7 +365,7 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       console.warn('Failed to save to localStorage:', e);
     }
-  }, [isClient, accounts, categories, transactions, budgets, goals, user]);
+  }, [isClient, accounts, categories, transactions, budgets, goals, debts, user]);
 
   // Listen for Supabase Auth state changes
   useEffect(() => {
@@ -898,14 +898,14 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const resetAllFinancialData = useCallback(() => {
-    setAccounts(DEFAULT_CLEAN_ACCOUNTS);
+    setAccounts([]);
     setCategories(INITIAL_CATEGORIES);
     setTransactions([]);
     setBudgets([]);
     setGoals([]);
     setDebts([]);
     try {
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_accounts`, JSON.stringify(DEFAULT_CLEAN_ACCOUNTS));
+      localStorage.setItem(`${STORAGE_KEY_PREFIX}_accounts`, JSON.stringify([]));
       localStorage.setItem(`${STORAGE_KEY_PREFIX}_categories`, JSON.stringify(INITIAL_CATEGORIES));
       localStorage.setItem(`${STORAGE_KEY_PREFIX}_transactions`, JSON.stringify([]));
       localStorage.setItem(`${STORAGE_KEY_PREFIX}_budgets`, JSON.stringify([]));
@@ -914,7 +914,7 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       console.warn('Failed to reset financial data in localStorage:', e);
     }
-    showToast('Seluruh mutasi transaksi dan rekening telah dibersihkan.', 'info');
+    showToast('Seluruh mutasi transaksi, rekening, dan utang-piutang telah dibersihkan.', 'info');
   }, [showToast]);
 
   const resetToDemoData = resetAllFinancialData;
@@ -933,16 +933,18 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
       };
 
       setUser(cleanUser);
-      setAccounts(DEFAULT_CLEAN_ACCOUNTS);
+      setAccounts([]);
       setTransactions([]);
       setBudgets([]);
       setGoals([]);
+      setDebts([]);
       try {
         localStorage.setItem(`${STORAGE_KEY_PREFIX}_user`, JSON.stringify(cleanUser));
-        localStorage.setItem(`${STORAGE_KEY_PREFIX}_accounts`, JSON.stringify(DEFAULT_CLEAN_ACCOUNTS));
+        localStorage.setItem(`${STORAGE_KEY_PREFIX}_accounts`, JSON.stringify([]));
         localStorage.setItem(`${STORAGE_KEY_PREFIX}_transactions`, JSON.stringify([]));
         localStorage.setItem(`${STORAGE_KEY_PREFIX}_budgets`, JSON.stringify([]));
         localStorage.setItem(`${STORAGE_KEY_PREFIX}_goals`, JSON.stringify([]));
+        localStorage.setItem(`${STORAGE_KEY_PREFIX}_debts`, JSON.stringify([]));
       } catch (e) {
         console.warn('Failed to save clean session to localStorage:', e);
       }
@@ -963,36 +965,55 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
     };
 
     setUser(cleanUser);
-    setAccounts(DEFAULT_CLEAN_ACCOUNTS);
-    setTransactions([]);
-    setBudgets([]);
-    setGoals([]);
-    try {
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_user`, JSON.stringify(cleanUser));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_accounts`, JSON.stringify(DEFAULT_CLEAN_ACCOUNTS));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_transactions`, JSON.stringify([]));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_budgets`, JSON.stringify([]));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_goals`, JSON.stringify([]));
-    } catch (e) {
-      console.warn('Failed to save register session to localStorage:', e);
-    }
-  }, []);
-
-  const setCleanUserSession = useCallback((profile: UserProfile, initialAccounts?: Account[]) => {
-    setUser(profile);
-    const accs = initialAccounts && initialAccounts.length > 0 ? initialAccounts : DEFAULT_CLEAN_ACCOUNTS;
-    setAccounts(accs);
+    setAccounts([]);
     setTransactions([]);
     setBudgets([]);
     setGoals([]);
     setDebts([]);
     try {
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_user`, JSON.stringify(profile));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_accounts`, JSON.stringify(accs));
+      localStorage.setItem(`${STORAGE_KEY_PREFIX}_user`, JSON.stringify(cleanUser));
+      localStorage.setItem(`${STORAGE_KEY_PREFIX}_accounts`, JSON.stringify([]));
       localStorage.setItem(`${STORAGE_KEY_PREFIX}_transactions`, JSON.stringify([]));
       localStorage.setItem(`${STORAGE_KEY_PREFIX}_budgets`, JSON.stringify([]));
       localStorage.setItem(`${STORAGE_KEY_PREFIX}_goals`, JSON.stringify([]));
       localStorage.setItem(`${STORAGE_KEY_PREFIX}_debts`, JSON.stringify([]));
+    } catch (e) {
+      console.warn('Failed to save register session to localStorage:', e);
+    }
+  }, []);
+
+  const setCleanUserSession = useCallback((
+    profile: UserProfile,
+    initialAccounts?: Account[],
+    initialCategories?: Category[],
+    initialTransactions?: Transaction[],
+    initialBudgets?: Budget[],
+    initialGoals?: Goal[],
+    initialDebts?: Debt[]
+  ) => {
+    setUser(profile);
+    const accs = Array.isArray(initialAccounts) ? initialAccounts : [];
+    const cats = Array.isArray(initialCategories) && initialCategories.length > 0 ? initialCategories : INITIAL_CATEGORIES;
+    const txs = Array.isArray(initialTransactions) ? initialTransactions : [];
+    const bgts = Array.isArray(initialBudgets) ? initialBudgets : [];
+    const gls = Array.isArray(initialGoals) ? initialGoals : [];
+    const dbts = Array.isArray(initialDebts) ? initialDebts : [];
+
+    setAccounts(accs);
+    setCategories(cats);
+    setTransactions(txs);
+    setBudgets(bgts);
+    setGoals(gls);
+    setDebts(dbts);
+
+    try {
+      localStorage.setItem(`${STORAGE_KEY_PREFIX}_user`, JSON.stringify(profile));
+      localStorage.setItem(`${STORAGE_KEY_PREFIX}_accounts`, JSON.stringify(accs));
+      localStorage.setItem(`${STORAGE_KEY_PREFIX}_categories`, JSON.stringify(cats));
+      localStorage.setItem(`${STORAGE_KEY_PREFIX}_transactions`, JSON.stringify(txs));
+      localStorage.setItem(`${STORAGE_KEY_PREFIX}_budgets`, JSON.stringify(bgts));
+      localStorage.setItem(`${STORAGE_KEY_PREFIX}_goals`, JSON.stringify(gls));
+      localStorage.setItem(`${STORAGE_KEY_PREFIX}_debts`, JSON.stringify(dbts));
     } catch (e) {
       console.warn('Failed to save session to localStorage:', e);
     }
@@ -1005,11 +1026,11 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
       console.error('Logout error:', e);
     }
     setUser(null);
-    setAccounts(DEFAULT_CLEAN_ACCOUNTS);
+    setAccounts([]);
     setTransactions([]);
     setBudgets([]);
     setGoals([]);
-    setDebts(INITIAL_DEBTS);
+    setDebts([]);
     try {
       localStorage.removeItem(`${STORAGE_KEY_PREFIX}_user`);
       localStorage.removeItem(`${STORAGE_KEY_PREFIX}_transactions`);
