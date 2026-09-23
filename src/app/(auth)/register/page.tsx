@@ -191,33 +191,6 @@ export default function RegisterPage() {
               </div>
             ) : (
               <>
-                {/* Google OAuth */}
-                <button
-                  type="button"
-                  onClick={handleGoogleRegister}
-                  disabled={isLoading || isGoogleLoading}
-                  className="w-full flex items-center justify-center gap-2.5 h-10 px-4 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800/80 text-zinc-700 dark:text-zinc-200 font-medium text-sm transition-colors cursor-pointer disabled:opacity-50 shadow-2xs"
-                >
-                  {isGoogleLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-zinc-500" />
-                  ) : (
-                    <GoogleIcon className="h-4 w-4 shrink-0" />
-                  )}
-                  <span>Lanjutkan dengan Google</span>
-                </button>
-
-                {/* Divider */}
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-zinc-200 dark:border-zinc-800" />
-                  </div>
-                  <div className="relative flex justify-center text-xs">
-                    <span className="bg-white dark:bg-zinc-900 px-2 text-zinc-400">
-                      atau email
-                    </span>
-                  </div>
-                </div>
-
                 {/* Error */}
                 {errors.form && (
                   <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-start gap-2">
@@ -226,7 +199,7 @@ export default function RegisterPage() {
                   </div>
                 )}
 
-                {/* Form */}
+                {/* Form (First) */}
                 <form onSubmit={handleSubmit} autoComplete="on" className="space-y-3.5">
                   {/* Name */}
                   <div className="space-y-1">
@@ -338,7 +311,7 @@ export default function RegisterPage() {
                         type="button"
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                         aria-label={showConfirmPassword ? 'Sembunyikan sandi' : 'Tampilkan sandi'}
-                        className="absolute right-3 p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors cursor-pointer"
+                        className="absolute right-3 p-0.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors cursor-pointer"
                       >
                         {showConfirmPassword ? (
                           <EyeOff className="h-4 w-4" />
@@ -390,6 +363,33 @@ export default function RegisterPage() {
                     )}
                   </button>
                 </form>
+
+                {/* Divider */}
+                <div className="relative my-1">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-zinc-200 dark:border-zinc-800" />
+                  </div>
+                  <div className="relative flex justify-center text-xs">
+                    <span className="bg-white dark:bg-zinc-900 px-2 text-zinc-400">
+                      atau
+                    </span>
+                  </div>
+                </div>
+
+                {/* Google OAuth (Now at the bottom) */}
+                <button
+                  type="button"
+                  onClick={handleGoogleRegister}
+                  disabled={isLoading || isGoogleLoading}
+                  className="w-full flex items-center justify-center gap-2.5 h-10 px-4 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800/80 text-zinc-700 dark:text-zinc-200 font-medium text-sm transition-colors cursor-pointer disabled:opacity-50 shadow-2xs"
+                >
+                  {isGoogleLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-zinc-500" />
+                  ) : (
+                    <GoogleIcon className="h-4 w-4 shrink-0" />
+                  )}
+                  <span>Daftar dengan Google</span>
+                </button>
               </>
             )}
           </div>

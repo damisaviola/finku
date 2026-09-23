@@ -177,33 +177,6 @@ export default function LoginPage() {
           {/* Form Card */}
           <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 shadow-xs space-y-5">
             
-            {/* Google OAuth Login */}
-            <button
-              type="button"
-              onClick={handleGoogleLogin}
-              disabled={isLoading || isGoogleLoading}
-              className="w-full flex items-center justify-center gap-2.5 h-10 px-4 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800/80 text-zinc-700 dark:text-zinc-200 font-medium text-sm transition-colors cursor-pointer disabled:opacity-50 shadow-2xs"
-            >
-              {isGoogleLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin text-zinc-500" />
-              ) : (
-                <GoogleIcon className="h-4 w-4 shrink-0" />
-              )}
-              <span>Lanjutkan dengan Google</span>
-            </button>
-
-            {/* Divider */}
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-zinc-200 dark:border-zinc-800" />
-              </div>
-              <div className="relative flex justify-center text-xs">
-                <span className="bg-white dark:bg-zinc-900 px-2 text-zinc-400">
-                  atau email
-                </span>
-              </div>
-            </div>
-
             {/* Error Message */}
             {errors.form && (
               <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-start gap-2">
@@ -212,7 +185,7 @@ export default function LoginPage() {
               </div>
             )}
 
-            {/* Credentials Form */}
+            {/* Credentials Form (First) */}
             <form onSubmit={handleSubmit} autoComplete="on" className="space-y-4">
               {/* Email */}
               <div className="space-y-1.5">
@@ -313,8 +286,35 @@ export default function LoginPage() {
               </button>
             </form>
 
+            {/* Divider */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-zinc-200 dark:border-zinc-800" />
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-white dark:bg-zinc-900 px-2 text-zinc-400">
+                  atau
+                </span>
+              </div>
+            </div>
+
+            {/* Google OAuth Login (Now at the bottom) */}
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              disabled={isLoading || isGoogleLoading}
+              className="w-full flex items-center justify-center gap-2.5 h-10 px-4 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800/80 text-zinc-700 dark:text-zinc-200 font-medium text-sm transition-colors cursor-pointer disabled:opacity-50 shadow-2xs"
+            >
+              {isGoogleLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin text-zinc-500" />
+              ) : (
+                <GoogleIcon className="h-4 w-4 shrink-0" />
+              )}
+              <span>Masuk dengan Google</span>
+            </button>
+
             {/* Quick Demo Helper */}
-            <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800 text-center">
+            <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800 text-center">
               <button
                 type="button"
                 onClick={handleQuickDemoLogin}
