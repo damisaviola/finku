@@ -4,6 +4,7 @@ import { Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 import { DompetKuProvider } from '@/lib/store';
 import { AppShell } from '@/components/layout/app-shell';
+import { PwaRegister } from '@/components/pwa/pwa-register';
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ['latin'],
@@ -15,6 +16,25 @@ export const metadata: Metadata = {
   title: 'DompetKu — Pelacak Keuangan Pribadi',
   description:
     'Aplikasi web untuk mencatat, mengelola, dan memantau keuangan pribadi dengan mudah, cepat, dan akurat.',
+  applicationName: 'DompetKu',
+  manifest: '/manifest.webmanifest',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'DompetKu',
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  icons: {
+    icon: [
+      { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
+  },
   keywords: [
     'keuangan pribadi',
     'pelacak keuangan',
@@ -22,12 +42,17 @@ export const metadata: Metadata = {
     'tabungan',
     'catat pengeluaran',
     'DompetKu',
+    'PWA',
   ],
 };
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#09090b' },
+  ],
 };
 
 export default function RootLayout({
@@ -38,6 +63,10 @@ export default function RootLayout({
   return (
     <html lang="id" className={`${plusJakartaSans.variable} h-full antialiased`} suppressHydrationWarning>
       <head>
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <Script
           id="theme-font-init"
           strategy="beforeInteractive"
@@ -68,6 +97,7 @@ export default function RootLayout({
       <body className="min-h-full font-sans antialiased text-zinc-900 bg-zinc-50 dark:bg-zinc-950 dark:text-zinc-100 transition-colors">
         <DompetKuProvider>
           <AppShell>{children}</AppShell>
+          <PwaRegister />
         </DompetKuProvider>
       </body>
     </html>

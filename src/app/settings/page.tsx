@@ -22,6 +22,8 @@ import {
   Sparkles,
   LogOut,
   ExternalLink,
+  Smartphone,
+  Download,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useDompetKu } from '@/lib/store';
@@ -42,6 +44,16 @@ export default function SettingsPage() {
   const [timezone, setTimezone] = useState(user?.timezone || 'Asia/Jakarta');
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(user?.theme || 'system');
   const [localFontSize, setLocalFontSize] = useState<FontSize>(fontSize || user?.fontSize || 'normal');
+  const [isStandalone, setIsStandalone] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const standalone =
+        window.matchMedia('(display-mode: standalone)').matches ||
+        (window.navigator as unknown as { standalone?: boolean }).standalone === true;
+      setIsStandalone(Boolean(standalone));
+    }
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -613,7 +625,54 @@ export default function SettingsPage() {
         )}
       </div>
 
-      {/* 4. KARTU ATUR ULANG DATA FINANSIAL */}
+      {/* 4. KARTU APLIKASI WEB PROGRESIF (PWA) */}
+      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 sm:p-7 shadow-xs ring-1 ring-zinc-950/5 dark:ring-white/5 space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center shrink-0">
+              <Smartphone className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-bold tracking-tight text-zinc-950 dark:text-white">
+                  Aplikasi Web Progresif (PWA)
+                </h3>
+                {isStandalone ? (
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-semibold">
+                    Terpasang di Perangkat
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-semibold">
+                    Dapat Dipasang
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                Pasang DompetKu langsung ke layar utama ponsel atau desktop untuk akses cepat dan dukungan mode offline.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800 text-xs text-zinc-600 dark:text-zinc-300 space-y-2">
+          <p className="font-semibold text-zinc-900 dark:text-zinc-100 text-[11px]">
+            Cara Memasang ke Layar Utama:
+          </p>
+          <ul className="list-disc pl-5 space-y-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+            <li>
+              <strong>Android (Chrome):</strong> Tekan ikon menu titik tiga (⋮) di pojok kanan atas, lalu pilih <em>"Tambahkan ke Layar Utama"</em> atau <em>"Pasang Aplikasi"</em>.
+            </li>
+            <li>
+              <strong>iOS / iPhone (Safari):</strong> Tekan tombol Bagikan (Share <span className="font-mono">⎋</span>) di bilah bawah, gulir ke bawah lalu pilih <em>"Tambah ke Layar Utama"</em>.
+            </li>
+            <li>
+              <strong>PC / Desktop (Chrome / Edge):</strong> Klik ikon pasang aplikasi di sebelah kanan bilah alamat (URL bar).
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      {/* 5. KARTU ATUR ULANG DATA FINANSIAL */}
       <div className="rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/20 dark:bg-rose-950/15 p-6 sm:p-7 shadow-xs ring-1 ring-rose-950/5 dark:ring-white/5 space-y-4">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 flex items-center justify-center shrink-0">
