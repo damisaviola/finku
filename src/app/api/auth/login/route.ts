@@ -30,6 +30,14 @@ export async function POST(request: Request) {
       transactions: true,
       budgets: true,
       goals: true,
+      debts: {
+        include: {
+          payments: {
+            orderBy: { payment_date: 'asc' as const },
+          },
+        },
+        orderBy: { created_at: 'desc' as const },
+      },
     };
 
     const formatResponse = (userRecord: any) => ({
@@ -95,6 +103,28 @@ export async function POST(request: Request) {
         icon: 'Target',
         created_at: g.created_at instanceof Date ? g.created_at.toISOString() : g.created_at,
         updated_at: g.updated_at instanceof Date ? g.updated_at.toISOString() : g.updated_at,
+      })),
+      debts: (userRecord.debts || []).map((d: any) => ({
+        id: d.id,
+        type: d.type,
+        person_name: d.person_name,
+        phone_number: d.phone_number || undefined,
+        total_amount: Number(d.total_amount),
+        paid_amount: Number(d.paid_amount),
+        due_date: d.due_date ? (d.due_date instanceof Date ? d.due_date.toISOString().split('T')[0] : String(d.due_date).split('T')[0]) : undefined,
+        account_id: d.account_id || undefined,
+        notes: d.notes || undefined,
+        created_at: d.created_at instanceof Date ? d.created_at.toISOString() : d.created_at,
+        updated_at: d.updated_at instanceof Date ? d.updated_at.toISOString() : d.updated_at,
+        payments: (d.payments || []).map((p: any) => ({
+          id: p.id,
+          debt_id: p.debt_id,
+          amount: Number(p.amount),
+          payment_date: p.payment_date instanceof Date ? p.payment_date.toISOString().split('T')[0] : String(p.payment_date).split('T')[0],
+          account_id: p.account_id || undefined,
+          notes: p.notes || undefined,
+          created_at: p.created_at instanceof Date ? p.created_at.toISOString() : p.created_at,
+        })),
       })),
     });
 

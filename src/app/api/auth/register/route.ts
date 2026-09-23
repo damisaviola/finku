@@ -95,38 +95,24 @@ export async function POST(request: Request) {
       },
     });
 
-    // 5. Inisialisasi rekening awal default untuk pengguna baru jika belum ada
-    const defaultAccounts = [
-      {
-        user_id: newUser.id,
-        name: 'Kas Tunai',
-        type: 'Uang Tunai',
-        initial_balance: 0,
-        currency: 'IDR',
-        color: '#10b981',
-      },
-      {
-        user_id: newUser.id,
-        name: 'Rekening Bank',
-        type: 'Bank',
-        initial_balance: 0,
-        currency: 'IDR',
-        color: '#3b82f6',
-      },
-    ];
-
-    await prisma.account.createMany({
-      data: defaultAccounts,
-      skipDuplicates: true,
-    });
-
-    // 6. Inisialisasi kategori dasar untuk pengguna baru jika belum ada
+    // 5. Inisialisasi kategori dasar untuk pengguna baru jika belum ada
     const defaultCategories = [
-      { user_id: newUser.id, name: 'Makanan & Minuman', type: 'expense', color: '#ef4444' },
-      { user_id: newUser.id, name: 'Transportasi', type: 'expense', color: '#f59e0b' },
-      { user_id: newUser.id, name: 'Belanja & Kebutuhan', type: 'expense', color: '#ec4899' },
-      { user_id: newUser.id, name: 'Gaji & Pendapatan', type: 'income', color: '#10b981' },
-      { user_id: newUser.id, name: 'Investasi & Bonus', type: 'income', color: '#8b5cf6' },
+      { user_id: newUser.id, name: 'Makanan', type: 'expense', icon: 'Utensils', color: '#f97316' },
+      { user_id: newUser.id, name: 'Transportasi', type: 'expense', icon: 'Car', color: '#0284c7' },
+      { user_id: newUser.id, name: 'Belanja', type: 'expense', icon: 'ShoppingBag', color: '#ec4899' },
+      { user_id: newUser.id, name: 'Tagihan', type: 'expense', icon: 'Receipt', color: '#8b5cf6' },
+      { user_id: newUser.id, name: 'Hiburan', type: 'expense', icon: 'Film', color: '#f43f5e' },
+      { user_id: newUser.id, name: 'Kesehatan', type: 'expense', icon: 'HeartPulse', color: '#10b981' },
+      { user_id: newUser.id, name: 'Pendidikan', type: 'expense', icon: 'GraduationCap', color: '#6366f1' },
+      { user_id: newUser.id, name: 'Perjalanan', type: 'expense', icon: 'Plane', color: '#eab308' },
+      { user_id: newUser.id, name: 'Langganan', type: 'expense', icon: 'CreditCard', color: '#64748b' },
+      { user_id: newUser.id, name: 'Lainnya', type: 'expense', icon: 'MoreHorizontal', color: '#94a3b8' },
+      { user_id: newUser.id, name: 'Gaji', type: 'income', icon: 'Briefcase', color: '#10b981' },
+      { user_id: newUser.id, name: 'Freelance', type: 'income', icon: 'Laptop', color: '#3b82f6' },
+      { user_id: newUser.id, name: 'Bisnis', type: 'income', icon: 'Store', color: '#8b5cf6' },
+      { user_id: newUser.id, name: 'Bonus', type: 'income', icon: 'Award', color: '#f59e0b' },
+      { user_id: newUser.id, name: 'Hadiah', type: 'income', icon: 'Gift', color: '#ec4899' },
+      { user_id: newUser.id, name: 'Investasi', type: 'income', icon: 'TrendingUp', color: '#059669' },
     ];
 
     await prisma.category.createMany({
@@ -134,9 +120,9 @@ export async function POST(request: Request) {
       skipDuplicates: true,
     });
 
-    // Ambil data rekening yang baru dibuat untuk dikembalikan ke klien
-    const createdAccounts = await prisma.account.findMany({
+    const userCategories = await prisma.category.findMany({
       where: { user_id: newUser.id },
+      orderBy: { created_at: 'asc' },
     });
 
     return NextResponse.json({
@@ -149,13 +135,21 @@ export async function POST(request: Request) {
         avatar_url: newUser.avatar_url,
         provider: 'email',
       },
-      accounts: createdAccounts.map((acc: Account) => ({
-        id: acc.id,
-        name: acc.name,
-        type: acc.type,
-        balance: Number(acc.initial_balance),
-        color: acc.color || '#3b82f6',
+      accounts: [],
+      categories: userCategories.map((cat) => ({
+        id: cat.id,
+        name: cat.name,
+        type: cat.type,
+        icon: cat.icon || 'Tag',
+        color: cat.color || '#3b82f6',
+        is_active: cat.is_active,
+        created_at: cat.created_at.toISOString(),
+        updated_at: cat.updated_at.toISOString(),
       })),
+      transactions: [],
+      budgets: [],
+      goals: [],
+      debts: [],
     });
   } catch (error: unknown) {
     console.error('Error during user registration:', error);

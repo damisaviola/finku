@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Wallet, Loader2, CheckCircle2, AlertCircle, ArrowRight } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase/client';
 import { syncUserProfile } from '@/lib/supabase/auth';
+import { pullUserCloudData } from '@/lib/supabase/sync';
 import { useDompetKu } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 
@@ -91,18 +92,34 @@ function CallbackContent() {
       setUserName(resolvedName);
       setStatus('success');
 
-      // Initialize clean local context store session
-      setCleanUserSession({
-        id: authUser.id,
-        name: resolvedName,
-        email: authUser.email || '',
-        avatar_url: resolvedAvatar,
-        provider: 'google',
-        currency: 'IDR',
-        timezone: 'Asia/Jakarta',
-        theme: 'system',
-        fontSize: 'normal',
-      });
+      // Pull real data from Supabase PostgreSQL database for this user
+      const cloudData = await pullUserCloudData(
+        authUser.id,
+        authUser.email || '',
+        resolvedName,
+        resolvedAvatar
+      );
+
+      // Initialize local context store session with database records
+      setCleanUserSession(
+        {
+          id: authUser.id,
+          name: resolvedName,
+          email: authUser.email || '',
+          avatar_url: resolvedAvatar,
+          provider: 'google',
+          currency: 'IDR',
+          timezone: 'Asia/Jakarta',
+          theme: 'system',
+          fontSize: 'normal',
+        },
+        cloudData?.accounts || [],
+        cloudData?.categories || [],
+        cloudData?.transactions || [],
+        cloudData?.budgets || [],
+        cloudData?.goals || [],
+        cloudData?.debts || []
+      );
 
       // Sync to public.users table in Supabase
       await syncUserProfile({

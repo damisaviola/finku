@@ -14,6 +14,18 @@ import { calculateAccountBalance, validateTransactionBalance } from './calculati
 import { formatRupiah } from './utils/formatters';
 import { supabase, isSupabaseConfigured } from './supabase/client';
 import { signOutSupabase } from './supabase/auth';
+import { pullUserCloudData, pushCloudMutation } from './supabase/sync';
+
+function generateId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
 
 interface ToastItem {
   id: string;
@@ -264,7 +276,7 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
     [isPrivacyMode]
   );
 
-  // Load from localStorage on client mount
+  // Load from localStorage on client mount & sync from cloud in background
   useEffect(() => {
     setIsClient(true);
     try {
@@ -317,6 +329,25 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
           } else {
             setDebts([]);
           }
+
+          // Asynchronously pull cloud data if user is logged in
+          if (parsedUser.id && parsedUser.id.includes('-')) {
+            pullUserCloudData(
+              parsedUser.id,
+              parsedUser.email,
+              parsedUser.name,
+              parsedUser.avatar_url
+            ).then((cloud) => {
+              if (cloud && cloud.success) {
+                if (cloud.accounts) setAccounts(cloud.accounts);
+                if (cloud.categories && cloud.categories.length > 0) setCategories(cloud.categories);
+                if (cloud.transactions) setTransactions(cloud.transactions);
+                if (cloud.budgets) setBudgets(cloud.budgets);
+                if (cloud.goals) setGoals(cloud.goals);
+                if (cloud.debts) setDebts(cloud.debts);
+              }
+            }).catch(console.warn);
+          }
         }
       } else {
         // Unauthenticated visitor: start with clean slate
@@ -367,26 +398,49 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isClient, accounts, categories, transactions, budgets, goals, debts, user]);
 
-  // Listen for Supabase Auth state changes
+  // Listen for Supabase Auth state changes and pull database data
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) return;
+
+    const syncSessionCloudData = async (
+      sessionUser: import('@supabase/supabase-js').User
+    ) => {
+      const meta = sessionUser.user_metadata || {};
+      const isGoogle = sessionUser.app_metadata?.provider === 'google' || Boolean(meta.avatar_url?.includes('googleusercontent.com'));
+      const resolvedName = meta.full_name || meta.name || sessionUser.email?.split('@')[0] || 'Pengguna DompetKu';
+      const resolvedAvatar = meta.avatar_url || meta.picture;
+
+      setUser((prev) => ({
+        id: sessionUser.id,
+        name: resolvedName,
+        email: sessionUser.email || '',
+        avatar_url: resolvedAvatar || prev?.avatar_url,
+        provider: isGoogle ? 'google' : (prev?.provider || 'email'),
+        currency: prev?.currency || 'IDR',
+        timezone: prev?.timezone || 'Asia/Jakarta',
+        theme: prev?.theme || 'system',
+        fontSize: prev?.fontSize || 'normal',
+      }));
+
+      try {
+        const cloud = await pullUserCloudData(sessionUser.id, sessionUser.email, resolvedName, resolvedAvatar);
+        if (cloud && cloud.success) {
+          if (cloud.accounts) setAccounts(cloud.accounts);
+          if (cloud.categories && cloud.categories.length > 0) setCategories(cloud.categories);
+          if (cloud.transactions) setTransactions(cloud.transactions);
+          if (cloud.budgets) setBudgets(cloud.budgets);
+          if (cloud.goals) setGoals(cloud.goals);
+          if (cloud.debts) setDebts(cloud.debts);
+        }
+      } catch (err) {
+        console.warn('Gagal memuat data cloud pengguna:', err);
+      }
+    };
 
     // Check initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        const meta = session.user.user_metadata || {};
-        const isGoogle = session.user.app_metadata?.provider === 'google' || Boolean(meta.avatar_url?.includes('googleusercontent.com'));
-        setUser((prev) => ({
-          id: session.user.id,
-          name: meta.full_name || meta.name || session.user.email?.split('@')[0] || 'Pengguna DompetKu',
-          email: session.user.email || '',
-          avatar_url: meta.avatar_url || meta.picture || prev?.avatar_url,
-          provider: isGoogle ? 'google' : (prev?.provider || 'email'),
-          currency: prev?.currency || 'IDR',
-          timezone: prev?.timezone || 'Asia/Jakarta',
-          theme: prev?.theme || 'system',
-          fontSize: prev?.fontSize || 'normal',
-        }));
+        syncSessionCloudData(session.user);
       }
     });
 
@@ -394,25 +448,14 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
-        const meta = session.user.user_metadata || {};
-        const isGoogle = session.user.app_metadata?.provider === 'google' || Boolean(meta.avatar_url?.includes('googleusercontent.com'));
-        setUser((prev) => ({
-          id: session.user.id,
-          name: meta.full_name || meta.name || session.user.email?.split('@')[0] || 'Pengguna DompetKu',
-          email: session.user.email || '',
-          avatar_url: meta.avatar_url || meta.picture || prev?.avatar_url,
-          provider: isGoogle ? 'google' : (prev?.provider || 'email'),
-          currency: prev?.currency || 'IDR',
-          timezone: prev?.timezone || 'Asia/Jakarta',
-          theme: prev?.theme || 'system',
-          fontSize: prev?.fontSize || 'normal',
-        }));
+        syncSessionCloudData(session.user);
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
-        setAccounts(DEFAULT_CLEAN_ACCOUNTS);
+        setAccounts([]);
         setTransactions([]);
         setBudgets([]);
         setGoals([]);
+        setDebts([]);
       }
     });
 
@@ -460,40 +503,52 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
 
       const newTx: Transaction = {
         ...data,
-        id: `tx-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        id: generateId(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
 
       setTransactions((prev) => [newTx, ...prev]);
+      if (user?.id) {
+        pushCloudMutation('upsertTransaction', user.id, { data: newTx }).catch(console.warn);
+      }
       showToast('Transaksi berhasil ditambahkan.', 'success');
       return true;
     },
-    [accounts, transactions, showToast]
+    [accounts, transactions, user?.id, showToast]
   );
 
   const updateTransaction = useCallback(
     (id: string, data: Partial<Transaction>): boolean => {
+      let updatedTx: Transaction | null = null;
       setTransactions((prev) =>
-        prev.map((t) =>
-          t.id === id
-            ? { ...t, ...data, updated_at: new Date().toISOString() }
-            : t
-        )
+        prev.map((t) => {
+          if (t.id === id) {
+            updatedTx = { ...t, ...data, updated_at: new Date().toISOString() };
+            return updatedTx;
+          }
+          return t;
+        })
       );
+      if (user?.id && updatedTx) {
+        pushCloudMutation('upsertTransaction', user.id, { data: updatedTx }).catch(console.warn);
+      }
       showToast('Transaksi berhasil diperbarui.', 'success');
       return true;
     },
-    [showToast]
+    [user?.id, showToast]
   );
 
   const deleteTransaction = useCallback(
     (id: string): boolean => {
       setTransactions((prev) => prev.filter((t) => t.id !== id));
+      if (user?.id) {
+        pushCloudMutation('deleteTransaction', user.id, { id }).catch(console.warn);
+      }
       showToast('Transaksi berhasil dihapus.', 'success');
       return true;
     },
-    [showToast]
+    [user?.id, showToast]
   );
 
   // Account Management
@@ -501,39 +556,51 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
     (data: Omit<Account, 'id' | 'created_at' | 'updated_at'>): boolean => {
       const newAccount: Account = {
         ...data,
-        id: `acc-${Date.now()}`,
+        id: generateId(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
       setAccounts((prev) => [...prev, newAccount]);
+      if (user?.id) {
+        pushCloudMutation('upsertAccount', user.id, { data: newAccount }).catch(console.warn);
+      }
       showToast('Rekening berhasil ditambahkan.', 'success');
       return true;
     },
-    [showToast]
+    [user?.id, showToast]
   );
 
   const updateAccount = useCallback(
     (id: string, data: Partial<Account>): boolean => {
+      let updatedAccount: Account | null = null;
       setAccounts((prev) =>
-        prev.map((a) =>
-          a.id === id
-            ? { ...a, ...data, updated_at: new Date().toISOString() }
-            : a
-        )
+        prev.map((a) => {
+          if (a.id === id) {
+            updatedAccount = { ...a, ...data, updated_at: new Date().toISOString() };
+            return updatedAccount;
+          }
+          return a;
+        })
       );
+      if (user?.id && updatedAccount) {
+        pushCloudMutation('upsertAccount', user.id, { data: updatedAccount }).catch(console.warn);
+      }
       showToast('Rekening berhasil diperbarui.', 'success');
       return true;
     },
-    [showToast]
+    [user?.id, showToast]
   );
 
   const deleteAccount = useCallback(
     (id: string): boolean => {
       setAccounts((prev) => prev.filter((a) => a.id !== id));
+      if (user?.id) {
+        pushCloudMutation('deleteAccount', user.id, { id }).catch(console.warn);
+      }
       showToast('Rekening berhasil dihapus.', 'success');
       return true;
     },
-    [showToast]
+    [user?.id, showToast]
   );
 
   // Category Management
@@ -541,39 +608,51 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
     (data: Omit<Category, 'id' | 'created_at' | 'updated_at'>): boolean => {
       const newCat: Category = {
         ...data,
-        id: `cat-${Date.now()}`,
+        id: generateId(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
       setCategories((prev) => [...prev, newCat]);
+      if (user?.id) {
+        pushCloudMutation('upsertCategory', user.id, { data: newCat }).catch(console.warn);
+      }
       showToast('Kategori berhasil ditambahkan.', 'success');
       return true;
     },
-    [showToast]
+    [user?.id, showToast]
   );
 
   const updateCategory = useCallback(
     (id: string, data: Partial<Category>): boolean => {
+      let updatedCat: Category | null = null;
       setCategories((prev) =>
-        prev.map((c) =>
-          c.id === id
-            ? { ...c, ...data, updated_at: new Date().toISOString() }
-            : c
-        )
+        prev.map((c) => {
+          if (c.id === id) {
+            updatedCat = { ...c, ...data, updated_at: new Date().toISOString() };
+            return updatedCat;
+          }
+          return c;
+        })
       );
+      if (user?.id && updatedCat) {
+        pushCloudMutation('upsertCategory', user.id, { data: updatedCat }).catch(console.warn);
+      }
       showToast('Kategori berhasil diperbarui.', 'success');
       return true;
     },
-    [showToast]
+    [user?.id, showToast]
   );
 
   const deleteCategory = useCallback(
     (id: string): boolean => {
       setCategories((prev) => prev.filter((c) => c.id !== id));
+      if (user?.id) {
+        pushCloudMutation('deleteCategory', user.id, { id }).catch(console.warn);
+      }
       showToast('Kategori berhasil dihapus.', 'success');
       return true;
     },
-    [showToast]
+    [user?.id, showToast]
   );
 
   // Budget Management
@@ -584,52 +663,64 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
       );
 
       if (existing) {
+        const updated = { ...existing, amount: data.amount, updated_at: new Date().toISOString() };
         setBudgets((prev) =>
-          prev.map((b) =>
-            b.id === existing.id
-              ? { ...b, amount: data.amount, updated_at: new Date().toISOString() }
-              : b
-          )
+          prev.map((b) => (b.id === existing.id ? updated : b))
         );
+        if (user?.id) {
+          pushCloudMutation('upsertBudget', user.id, { data: updated }).catch(console.warn);
+        }
         showToast('Anggaran berhasil diperbarui.', 'success');
         return true;
       }
 
       const newBudget: Budget = {
         ...data,
-        id: `bgt-${Date.now()}`,
+        id: generateId(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
       setBudgets((prev) => [...prev, newBudget]);
+      if (user?.id) {
+        pushCloudMutation('upsertBudget', user.id, { data: newBudget }).catch(console.warn);
+      }
       showToast('Anggaran berhasil diperbarui.', 'success');
       return true;
     },
-    [budgets, showToast]
+    [budgets, user?.id, showToast]
   );
 
   const updateBudget = useCallback(
     (id: string, data: Partial<Budget>): boolean => {
+      let updatedBudget: Budget | null = null;
       setBudgets((prev) =>
-        prev.map((b) =>
-          b.id === id
-            ? { ...b, ...data, updated_at: new Date().toISOString() }
-            : b
-        )
+        prev.map((b) => {
+          if (b.id === id) {
+            updatedBudget = { ...b, ...data, updated_at: new Date().toISOString() };
+            return updatedBudget;
+          }
+          return b;
+        })
       );
+      if (user?.id && updatedBudget) {
+        pushCloudMutation('upsertBudget', user.id, { data: updatedBudget }).catch(console.warn);
+      }
       showToast('Anggaran berhasil diperbarui.', 'success');
       return true;
     },
-    [showToast]
+    [user?.id, showToast]
   );
 
   const deleteBudget = useCallback(
     (id: string): boolean => {
       setBudgets((prev) => prev.filter((b) => b.id !== id));
+      if (user?.id) {
+        pushCloudMutation('deleteBudget', user.id, { id }).catch(console.warn);
+      }
       showToast('Anggaran berhasil dihapus.', 'success');
       return true;
     },
-    [showToast]
+    [user?.id, showToast]
   );
 
   // Goal Management
@@ -637,30 +728,39 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
     (data: Omit<Goal, 'id' | 'created_at' | 'updated_at'>): boolean => {
       const newGoal: Goal = {
         ...data,
-        id: `goal-${Date.now()}`,
+        id: generateId(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
       setGoals((prev) => [...prev, newGoal]);
+      if (user?.id) {
+        pushCloudMutation('upsertGoal', user.id, { data: newGoal }).catch(console.warn);
+      }
       showToast('Target tabungan berhasil ditambahkan.', 'success');
       return true;
     },
-    [showToast]
+    [user?.id, showToast]
   );
 
   const updateGoal = useCallback(
     (id: string, data: Partial<Goal>): boolean => {
+      let updatedGoal: Goal | null = null;
       setGoals((prev) =>
-        prev.map((g) =>
-          g.id === id
-            ? { ...g, ...data, updated_at: new Date().toISOString() }
-            : g
-        )
+        prev.map((g) => {
+          if (g.id === id) {
+            updatedGoal = { ...g, ...data, updated_at: new Date().toISOString() };
+            return updatedGoal;
+          }
+          return g;
+        })
       );
+      if (user?.id && updatedGoal) {
+        pushCloudMutation('upsertGoal', user.id, { data: updatedGoal }).catch(console.warn);
+      }
       showToast('Target tabungan berhasil diperbarui.', 'success');
       return true;
     },
-    [showToast]
+    [user?.id, showToast]
   );
 
   const contributeGoal = useCallback(
@@ -670,6 +770,7 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
 
+      let newTx: Transaction | null = null;
       if (accountId) {
         const sourceAcc = accounts.find((a) => a.id === accountId);
         if (sourceAcc) {
@@ -679,48 +780,62 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
             return false;
           }
 
-          const newTx: Transaction = {
-            id: `tx-${Date.now()}`,
+          const investCat = categories.find((c) => c.name.toLowerCase().includes('investasi'))?.id;
+
+          newTx = {
+            id: generateId(),
             type: 'expense',
             amount,
             account_id: accountId,
-            category_id: 'cat-investasi',
+            category_id: investCat || undefined,
             description: `Setor Target Tabungan`,
             date: new Date().toISOString().split('T')[0],
             notes: 'Setoran ke target tabungan',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           };
-          setTransactions((prev) => [newTx, ...prev]);
+          setTransactions((prev) => [newTx!, ...prev]);
+          if (user?.id) {
+            pushCloudMutation('upsertTransaction', user.id, { data: newTx }).catch(console.warn);
+          }
         }
       }
 
+      let updatedGoal: Goal | null = null;
       setGoals((prev) =>
         prev.map((g) => {
           if (g.id === id) {
-            return {
+            updatedGoal = {
               ...g,
               current_amount: g.current_amount + amount,
               updated_at: new Date().toISOString(),
             };
+            return updatedGoal;
           }
           return g;
         })
       );
 
+      if (user?.id && updatedGoal) {
+        pushCloudMutation('upsertGoal', user.id, { data: updatedGoal }).catch(console.warn);
+      }
+
       showToast('Setoran tabungan berhasil dicatat!', 'success');
       return true;
     },
-    [accounts, transactions, showToast]
+    [accounts, categories, transactions, user?.id, showToast]
   );
 
   const deleteGoal = useCallback(
     (id: string): boolean => {
       setGoals((prev) => prev.filter((g) => g.id !== id));
+      if (user?.id) {
+        pushCloudMutation('deleteGoal', user.id, { id }).catch(console.warn);
+      }
       showToast('Target tabungan berhasil dihapus.', 'success');
       return true;
     },
-    [showToast]
+    [user?.id, showToast]
   );
 
   // Debts & Receivables Management
@@ -730,7 +845,7 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
       syncInitialTransaction: boolean = false
     ): boolean => {
       const now = new Date().toISOString();
-      const newDebtId = `debt-${Date.now()}`;
+      const newDebtId = generateId();
       const newDebt: Debt = {
         ...data,
         id: newDebtId,
@@ -740,17 +855,20 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
         updated_at: now,
       };
 
-      // Optional: catat mutasi transaksi awal jika dipilih oleh pengguna
       if (syncInitialTransaction && data.account_id && data.total_amount > 0) {
         const sourceAcc = accounts.find((a) => a.id === data.account_id);
         if (sourceAcc) {
           const isReceivable = data.type === 'receivable';
+          const cat = categories.find((c) =>
+            isReceivable ? c.name.toLowerCase().includes('lainnya') : c.name.toLowerCase().includes('gaji')
+          )?.id;
+
           const newTx: Transaction = {
-            id: `tx-debt-init-${Date.now()}`,
+            id: generateId(),
             type: isReceivable ? 'expense' : 'income',
             amount: data.total_amount,
             account_id: data.account_id,
-            category_id: isReceivable ? 'cat-lainnya' : 'cat-gaji',
+            category_id: cat || undefined,
             description: isReceivable
               ? `Pinjaman Diberikan: ${data.person_name}`
               : `Pinjaman Diterima: ${data.person_name}`,
@@ -760,37 +878,56 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
             updated_at: now,
           };
           setTransactions((prev) => [newTx, ...prev]);
+          if (user?.id) {
+            pushCloudMutation('upsertTransaction', user.id, { data: newTx }).catch(console.warn);
+          }
         }
       }
 
       setDebts((prev) => [newDebt, ...prev]);
+      if (user?.id) {
+        pushCloudMutation('upsertDebt', user.id, { data: newDebt }).catch(console.warn);
+      }
       showToast(
         data.type === 'receivable' ? 'Catatan piutang berhasil ditambahkan.' : 'Catatan utang berhasil ditambahkan.',
         'success'
       );
       return true;
     },
-    [accounts, showToast]
+    [accounts, categories, user?.id, showToast]
   );
 
   const updateDebt = useCallback(
     (id: string, data: Partial<Debt>): boolean => {
+      let updatedDebt: Debt | null = null;
       setDebts((prev) =>
-        prev.map((d) => (d.id === id ? { ...d, ...data, updated_at: new Date().toISOString() } : d))
+        prev.map((d) => {
+          if (d.id === id) {
+            updatedDebt = { ...d, ...data, updated_at: new Date().toISOString() };
+            return updatedDebt;
+          }
+          return d;
+        })
       );
+      if (user?.id && updatedDebt) {
+        pushCloudMutation('upsertDebt', user.id, { data: updatedDebt }).catch(console.warn);
+      }
       showToast('Catatan berhasil diperbarui.', 'success');
       return true;
     },
-    [showToast]
+    [user?.id, showToast]
   );
 
   const deleteDebt = useCallback(
     (id: string): boolean => {
       setDebts((prev) => prev.filter((d) => d.id !== id));
+      if (user?.id) {
+        pushCloudMutation('deleteDebt', user.id, { id }).catch(console.warn);
+      }
       showToast('Catatan utang/piutang berhasil dihapus.', 'success');
       return true;
     },
-    [showToast]
+    [user?.id, showToast]
   );
 
   const recordDebtPayment = useCallback(
@@ -821,7 +958,7 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
 
       const now = new Date().toISOString();
       const newPayment: DebtPayment = {
-        id: `pay-${Date.now()}`,
+        id: generateId(),
         debt_id: debtId,
         amount,
         payment_date: paymentDate,
@@ -835,14 +972,16 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
         const acc = accounts.find((a) => a.id === accountId);
         if (acc) {
           const isReceivable = targetDebt.type === 'receivable';
-          // Jika piutang: uang masuk ke kita (income)
-          // Jika utang: uang keluar dari kita untuk melunasi (expense)
+          const cat = categories.find((c) =>
+            isReceivable ? c.name.toLowerCase().includes('investasi') : c.name.toLowerCase().includes('tagihan')
+          )?.id;
+
           const newTx: Transaction = {
-            id: `tx-pay-${Date.now()}`,
+            id: generateId(),
             type: isReceivable ? 'income' : 'expense',
             amount,
             account_id: accountId,
-            category_id: isReceivable ? 'cat-investasi' : 'cat-tagihan',
+            category_id: cat || undefined,
             description: isReceivable
               ? `Pelunasan Piutang: ${targetDebt.person_name}`
               : `Pembayaran Utang: ${targetDebt.person_name}`,
@@ -852,6 +991,9 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
             updated_at: now,
           };
           setTransactions((prev) => [newTx, ...prev]);
+          if (user?.id) {
+            pushCloudMutation('upsertTransaction', user.id, { data: newTx }).catch(console.warn);
+          }
         }
       }
 
@@ -870,6 +1012,10 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
         })
       );
 
+      if (user?.id) {
+        pushCloudMutation('recordDebtPayment', user.id, { debtId, payment: newPayment }).catch(console.warn);
+      }
+
       const isFullyPaid = targetDebt.paid_amount + amount >= targetDebt.total_amount;
       showToast(
         isFullyPaid
@@ -879,7 +1025,7 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
       );
       return true;
     },
-    [debts, accounts, showToast]
+    [debts, accounts, categories, user?.id, showToast]
   );
 
   const updateUser = useCallback((profile: Partial<UserProfile>) => {
@@ -922,7 +1068,7 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
   const loginUser = useCallback(
     (email: string, name?: string) => {
       const cleanUser: UserProfile = {
-        id: `user-${Date.now()}`,
+        id: generateId(),
         name: name?.trim() || email.split('@')[0],
         email: email.trim(),
         provider: 'email',
@@ -954,7 +1100,7 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
 
   const registerUser = useCallback((name: string, email: string) => {
     const cleanUser: UserProfile = {
-      id: `user-${Date.now()}`,
+      id: generateId(),
       name: name.trim(),
       email: email.trim(),
       provider: 'email',

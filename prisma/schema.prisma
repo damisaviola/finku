@@ -20,6 +20,7 @@ model User {
   categories   Category[]
   goals        Goal[]
   transactions Transaction[]
+  debts        Debt[]
 
   @@map("users")
 }
@@ -119,3 +120,39 @@ model Goal {
   @@index([user_id])
   @@map("goals")
 }
+
+model Debt {
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id      String        @db.Uuid
+  type         String        @db.VarChar(20)
+  person_name  String        @db.VarChar(150)
+  phone_number String?       @db.VarChar(50)
+  total_amount Decimal       @db.Decimal(15, 2)
+  paid_amount  Decimal       @default(0) @db.Decimal(15, 2)
+  due_date     DateTime?     @db.Date
+  account_id   String?       @db.Uuid
+  notes        String?
+  created_at   DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime      @default(now()) @updatedAt @db.Timestamptz(6)
+  user         User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  payments     DebtPayment[]
+
+  @@index([user_id])
+  @@index([type])
+  @@map("debts")
+}
+
+model DebtPayment {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  debt_id      String    @db.Uuid
+  amount       Decimal   @db.Decimal(15, 2)
+  payment_date DateTime  @db.Date
+  account_id   String?   @db.Uuid
+  notes        String?
+  created_at   DateTime  @default(now()) @db.Timestamptz(6)
+  debt         Debt      @relation(fields: [debt_id], references: [id], onDelete: Cascade)
+
+  @@index([debt_id])
+  @@map("debt_payments")
+}
+

@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from './client';
-import { UserProfile, Account, Category, Transaction, Budget, Goal } from '@/types';
+import { UserProfile, Account, Category, Transaction, Budget, Goal, Debt } from '@/types';
 
 /**
  * Initiates Google OAuth Login through Supabase
@@ -152,6 +152,7 @@ export async function loginUserWithEmail(email: string, password: string): Promi
   transactions?: Transaction[];
   budgets?: Budget[];
   goals?: Goal[];
+  debts?: Debt[];
 }> {
   try {
     const response = await fetch('/api/auth/login', {
@@ -178,6 +179,7 @@ export async function loginUserWithEmail(email: string, password: string): Promi
       transactions: data.transactions || [],
       budgets: data.budgets || [],
       goals: data.goals || [],
+      debts: data.debts || [],
     };
   } catch (err: unknown) {
     return {

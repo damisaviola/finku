@@ -1,7 +1,7 @@
 import { Account, Category, Transaction, Budget, Goal, UserProfile, Debt } from '@/types';
 
 export const INITIAL_USER: UserProfile = {
-  id: 'user-1',
+  id: '00000000-0000-4000-8000-000000000001',
   name: 'Budi Santoso',
   email: 'budi.santoso@example.com',
   currency: 'IDR',
