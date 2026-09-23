@@ -83,3 +83,32 @@ export interface UserProfile {
   fontSize?: FontSize;
 }
 
+export type DebtType = 'debt' | 'receivable'; // 'debt' = Utang (Kewajiban), 'receivable' = Piutang (Hak Tagih)
+export type DebtStatus = 'unpaid' | 'partial' | 'paid' | 'overdue';
+
+export interface DebtPayment {
+  id: string;
+  debt_id: string;
+  amount: number;
+  payment_date: string; // YYYY-MM-DD
+  account_id?: string | null;
+  notes?: string;
+  created_at: string;
+}
+
+export interface Debt {
+  id: string;
+  user_id?: string;
+  type: DebtType;
+  person_name: string;
+  phone_number?: string;
+  total_amount: number;
+  paid_amount: number;
+  due_date?: string; // YYYY-MM-DD
+  account_id?: string | null;
+  notes?: string;
+  payments?: DebtPayment[];
+  created_at: string;
+  updated_at: string;
+}
+

@@ -1,4 +1,4 @@
-import { Account, Category, Transaction, Budget, Goal, UserProfile } from '@/types';
+import { Account, Category, Transaction, Budget, Goal, UserProfile, Debt } from '@/types';
 
 export const INITIAL_USER: UserProfile = {
   id: 'user-1',
@@ -404,5 +404,93 @@ export const INITIAL_GOALS: Goal[] = [
     icon: 'ShieldCheck',
     created_at: '2026-09-01T00:00:00.000Z',
     updated_at: '2026-09-01T00:00:00.000Z',
+  },
+];
+
+export const INITIAL_DEBTS: Debt[] = [
+  {
+    id: 'debt-rec-1',
+    type: 'receivable',
+    person_name: 'Andi Pratama',
+    phone_number: '081234567890',
+    total_amount: 450000,
+    paid_amount: 150000,
+    due_date: '2026-10-15',
+    account_id: 'acc-bca',
+    notes: 'Talangan beli tiket konser & makan bareng',
+    payments: [
+      {
+        id: 'pay-1',
+        debt_id: 'debt-rec-1',
+        amount: 150000,
+        payment_date: '2026-09-18',
+        account_id: 'acc-bca',
+        notes: 'Cicilan transfer pertama',
+        created_at: '2026-09-18T10:00:00.000Z',
+      },
+    ],
+    created_at: '2026-09-10T08:00:00.000Z',
+    updated_at: '2026-09-18T10:00:00.000Z',
+  },
+  {
+    id: 'debt-rec-2',
+    type: 'receivable',
+    person_name: 'Siti Rahma',
+    phone_number: '085712345678',
+    total_amount: 200000,
+    paid_amount: 200000,
+    due_date: '2026-09-20',
+    account_id: 'acc-gopay',
+    notes: 'Pinjam bayar token listrik kos',
+    payments: [
+      {
+        id: 'pay-2',
+        debt_id: 'debt-rec-2',
+        amount: 200000,
+        payment_date: '2026-09-20',
+        account_id: 'acc-gopay',
+        notes: 'Transfer lunas via GoPay',
+        created_at: '2026-09-20T14:30:00.000Z',
+      },
+    ],
+    created_at: '2026-09-12T09:00:00.000Z',
+    updated_at: '2026-09-20T14:30:00.000Z',
+  },
+  {
+    id: 'debt-pay-1',
+    type: 'debt',
+    person_name: 'Cicilan Smartphone (KreditPlus)',
+    total_amount: 3600000,
+    paid_amount: 1200000,
+    due_date: '2026-10-05',
+    account_id: 'acc-bca',
+    notes: 'Cicilan pembelian handphone tenor 12 bulan',
+    payments: [
+      {
+        id: 'pay-3',
+        debt_id: 'debt-pay-1',
+        amount: 1200000,
+        payment_date: '2026-09-05',
+        account_id: 'acc-bca',
+        notes: 'Autodebet bulan September',
+        created_at: '2026-09-05T07:00:00.000Z',
+      },
+    ],
+    created_at: '2026-07-01T00:00:00.000Z',
+    updated_at: '2026-09-05T07:00:00.000Z',
+  },
+  {
+    id: 'debt-pay-2',
+    type: 'debt',
+    person_name: 'Rian (Bengkel Motor)',
+    phone_number: '082198765432',
+    total_amount: 300000,
+    paid_amount: 0,
+    due_date: '2026-09-22',
+    account_id: 'acc-cash',
+    notes: 'Pinjam bayar biaya servis ganti ban darurat',
+    payments: [],
+    created_at: '2026-09-15T16:00:00.000Z',
+    updated_at: '2026-09-15T16:00:00.000Z',
   },
 ];

@@ -17,6 +17,7 @@ import {
   Layers,
   FileText,
   CalendarDays,
+  HandCoins,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/formatters';
 import { useDompetKu } from '@/lib/store';
@@ -24,7 +25,9 @@ import { useDompetKu } from '@/lib/store';
 export function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, transactions, budgets, goals, accounts, logout } = useDompetKu();
+  const { user, transactions, budgets, goals, accounts, debts, logout } = useDompetKu();
+
+  const activeDebtsCount = debts.filter((d) => d.paid_amount < d.total_amount).length;
 
   const navigationGroups = [
     {
@@ -49,6 +52,12 @@ export function Sidebar() {
           href: '/accounts',
           icon: Wallet,
           badge: accounts.length > 0 ? String(accounts.length) : undefined,
+        },
+        {
+          label: 'Utang & Piutang',
+          href: '/debts',
+          icon: HandCoins,
+          badge: activeDebtsCount > 0 ? String(activeDebtsCount) : undefined,
         },
         {
           label: 'Rekening Koran',

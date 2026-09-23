@@ -20,6 +20,7 @@ import {
   LogOut,
   CalendarDays,
   X,
+  HandCoins,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/formatters';
 import { useDompetKu } from '@/lib/store';
@@ -32,6 +33,7 @@ export function BottomNav() {
   const [isMoreDrawerOpen, setIsMoreDrawerOpen] = useState(false);
 
   const moreItems = [
+    { label: 'Utang & Piutang', href: '/debts', icon: HandCoins },
     { label: 'Kalender', href: '/calendar', icon: CalendarDays },
     { label: 'Anggaran', href: '/budgets', icon: PieChart },
     { label: 'Target Tabungan', href: '/goals', icon: Target },

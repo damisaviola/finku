@@ -1,16 +1,23 @@
 import React from 'react';
 import { cn } from '@/lib/utils/formatters';
 
-interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+export interface SelectOption {
+  label: string;
+  value: string | number;
+  disabled?: boolean;
+}
+
+export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
   error?: string;
   helperText?: string;
   leadingIcon?: React.ReactNode;
   required?: boolean;
+  options?: SelectOption[];
 }
 
 export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
-  ({ className, label, error, helperText, leadingIcon, required, children, id, ...props }, ref) => {
+  ({ className, label, error, helperText, leadingIcon, required, options, children, id, ...props }, ref) => {
     const selectId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined);
 
     return (
@@ -41,7 +48,13 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             )}
             {...props}
           >
-            {children}
+            {options
+              ? options.map((opt) => (
+                  <option key={opt.value} value={opt.value} disabled={opt.disabled}>
+                    {opt.label}
+                  </option>
+                ))
+              : children}
           </select>
         </div>
         {error && (

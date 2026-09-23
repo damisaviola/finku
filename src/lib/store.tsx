@@ -1,13 +1,14 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { Account, Category, Transaction, Budget, Goal, UserProfile, TransactionType, FontSize } from '@/types';
+import { Account, Category, Transaction, Budget, Goal, UserProfile, TransactionType, FontSize, Debt, DebtPayment } from '@/types';
 import {
   INITIAL_ACCOUNTS,
   INITIAL_CATEGORIES,
   INITIAL_TRANSACTIONS,
   INITIAL_BUDGETS,
   INITIAL_GOALS,
+  INITIAL_DEBTS,
 } from './mock-data';
 import { calculateAccountBalance, validateTransactionBalance } from './calculations/finance';
 import { formatRupiah } from './utils/formatters';
@@ -77,6 +78,20 @@ interface DompetKuContextType {
   contributeGoal: (id: string, amount: number, accountId?: string) => boolean;
   deleteGoal: (id: string) => boolean;
 
+  // Debt & Receivable Management
+  debts: Debt[];
+  addDebt: (data: Omit<Debt, 'id' | 'created_at' | 'updated_at' | 'paid_amount' | 'payments'>, syncInitialTransaction?: boolean) => boolean;
+  updateDebt: (id: string, data: Partial<Debt>) => boolean;
+  deleteDebt: (id: string) => boolean;
+  recordDebtPayment: (
+    debtId: string,
+    amount: number,
+    paymentDate: string,
+    accountId?: string | null,
+    notes?: string,
+    syncWithAccount?: boolean
+  ) => boolean;
+
   loginUser: (email: string, name?: string) => void;
   registerUser: (name: string, email: string) => void;
   setCleanUserSession: (profile: UserProfile, initialAccounts?: Account[]) => void;
@@ -119,6 +134,7 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [debts, setDebts] = useState<Debt[]>(INITIAL_DEBTS);
   const [activeMonth, setActiveMonth] = useState<string>('2026-09');
 
   // Theme State
@@ -293,6 +309,14 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
             const parsed = JSON.parse(savedGoals);
             if (Array.isArray(parsed)) setGoals(parsed);
           }
+
+          const savedDebts = localStorage.getItem(`${STORAGE_KEY_PREFIX}_debts`);
+          if (savedDebts && savedDebts !== 'null' && savedDebts !== 'undefined') {
+            const parsed = JSON.parse(savedDebts);
+            if (Array.isArray(parsed)) setDebts(parsed);
+          } else {
+            setDebts(INITIAL_DEBTS);
+          }
         }
       } else {
         // Unauthenticated visitor: start with clean slate
@@ -301,6 +325,7 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
         setTransactions([]);
         setBudgets([]);
         setGoals([]);
+        setDebts(INITIAL_DEBTS);
       }
 
       const savedTheme = localStorage.getItem(`${STORAGE_KEY_PREFIX}_theme`) as 'light' | 'dark' | 'system';
@@ -331,6 +356,7 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem(`${STORAGE_KEY_PREFIX}_transactions`, JSON.stringify(transactions));
       localStorage.setItem(`${STORAGE_KEY_PREFIX}_budgets`, JSON.stringify(budgets));
       localStorage.setItem(`${STORAGE_KEY_PREFIX}_goals`, JSON.stringify(goals));
+      localStorage.setItem(`${STORAGE_KEY_PREFIX}_debts`, JSON.stringify(debts));
       if (user) {
         localStorage.setItem(`${STORAGE_KEY_PREFIX}_user`, JSON.stringify(user));
       } else {
@@ -697,6 +723,165 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
     [showToast]
   );
 
+  // Debts & Receivables Management
+  const addDebt = useCallback(
+    (
+      data: Omit<Debt, 'id' | 'created_at' | 'updated_at' | 'paid_amount' | 'payments'>,
+      syncInitialTransaction: boolean = false
+    ): boolean => {
+      const now = new Date().toISOString();
+      const newDebtId = `debt-${Date.now()}`;
+      const newDebt: Debt = {
+        ...data,
+        id: newDebtId,
+        paid_amount: 0,
+        payments: [],
+        created_at: now,
+        updated_at: now,
+      };
+
+      // Optional: catat mutasi transaksi awal jika dipilih oleh pengguna
+      if (syncInitialTransaction && data.account_id && data.total_amount > 0) {
+        const sourceAcc = accounts.find((a) => a.id === data.account_id);
+        if (sourceAcc) {
+          const isReceivable = data.type === 'receivable';
+          const newTx: Transaction = {
+            id: `tx-debt-init-${Date.now()}`,
+            type: isReceivable ? 'expense' : 'income',
+            amount: data.total_amount,
+            account_id: data.account_id,
+            category_id: isReceivable ? 'cat-lainnya' : 'cat-gaji',
+            description: isReceivable
+              ? `Pinjaman Diberikan: ${data.person_name}`
+              : `Pinjaman Diterima: ${data.person_name}`,
+            date: now.split('T')[0],
+            notes: data.notes || (isReceivable ? 'Pencatatan piutang baru' : 'Pencatatan utang baru'),
+            created_at: now,
+            updated_at: now,
+          };
+          setTransactions((prev) => [newTx, ...prev]);
+        }
+      }
+
+      setDebts((prev) => [newDebt, ...prev]);
+      showToast(
+        data.type === 'receivable' ? 'Catatan piutang berhasil ditambahkan.' : 'Catatan utang berhasil ditambahkan.',
+        'success'
+      );
+      return true;
+    },
+    [accounts, showToast]
+  );
+
+  const updateDebt = useCallback(
+    (id: string, data: Partial<Debt>): boolean => {
+      setDebts((prev) =>
+        prev.map((d) => (d.id === id ? { ...d, ...data, updated_at: new Date().toISOString() } : d))
+      );
+      showToast('Catatan berhasil diperbarui.', 'success');
+      return true;
+    },
+    [showToast]
+  );
+
+  const deleteDebt = useCallback(
+    (id: string): boolean => {
+      setDebts((prev) => prev.filter((d) => d.id !== id));
+      showToast('Catatan utang/piutang berhasil dihapus.', 'success');
+      return true;
+    },
+    [showToast]
+  );
+
+  const recordDebtPayment = useCallback(
+    (
+      debtId: string,
+      amount: number,
+      paymentDate: string,
+      accountId?: string | null,
+      notes?: string,
+      syncWithAccount: boolean = true
+    ): boolean => {
+      const targetDebt = debts.find((d) => d.id === debtId);
+      if (!targetDebt) {
+        showToast('Catatan utang/piutang tidak ditemukan.', 'error');
+        return false;
+      }
+
+      if (amount <= 0) {
+        showToast('Nominal pembayaran harus lebih besar dari 0.', 'error');
+        return false;
+      }
+
+      const remaining = targetDebt.total_amount - targetDebt.paid_amount;
+      if (amount > remaining) {
+        showToast(`Nominal melebihi sisa tagihan (${formatRupiah(remaining)}).`, 'error');
+        return false;
+      }
+
+      const now = new Date().toISOString();
+      const newPayment: DebtPayment = {
+        id: `pay-${Date.now()}`,
+        debt_id: debtId,
+        amount,
+        payment_date: paymentDate,
+        account_id: accountId,
+        notes,
+        created_at: now,
+      };
+
+      // Sinkronisasi otomatis ke mutasi rekening jika dipilih
+      if (syncWithAccount && accountId) {
+        const acc = accounts.find((a) => a.id === accountId);
+        if (acc) {
+          const isReceivable = targetDebt.type === 'receivable';
+          // Jika piutang: uang masuk ke kita (income)
+          // Jika utang: uang keluar dari kita untuk melunasi (expense)
+          const newTx: Transaction = {
+            id: `tx-pay-${Date.now()}`,
+            type: isReceivable ? 'income' : 'expense',
+            amount,
+            account_id: accountId,
+            category_id: isReceivable ? 'cat-investasi' : 'cat-tagihan',
+            description: isReceivable
+              ? `Pelunasan Piutang: ${targetDebt.person_name}`
+              : `Pembayaran Utang: ${targetDebt.person_name}`,
+            date: paymentDate,
+            notes: notes || `Cicilan/Pelunasan ${isReceivable ? 'piutang' : 'utang'}`,
+            created_at: now,
+            updated_at: now,
+          };
+          setTransactions((prev) => [newTx, ...prev]);
+        }
+      }
+
+      setDebts((prev) =>
+        prev.map((d) => {
+          if (d.id === debtId) {
+            const newPaid = d.paid_amount + amount;
+            return {
+              ...d,
+              paid_amount: newPaid,
+              payments: [newPayment, ...(d.payments || [])],
+              updated_at: now,
+            };
+          }
+          return d;
+        })
+      );
+
+      const isFullyPaid = targetDebt.paid_amount + amount >= targetDebt.total_amount;
+      showToast(
+        isFullyPaid
+          ? `Selamat! Tagihan ${targetDebt.person_name} telah lunas.`
+          : `Pembayaran ${formatRupiah(amount)} berhasil dicatat.`,
+        'success'
+      );
+      return true;
+    },
+    [debts, accounts, showToast]
+  );
+
   const updateUser = useCallback((profile: Partial<UserProfile>) => {
     setUser((prev) => (prev ? { ...prev, ...profile } : null));
     if (profile.theme) {
@@ -718,12 +903,14 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
     setTransactions([]);
     setBudgets([]);
     setGoals([]);
+    setDebts([]);
     try {
       localStorage.setItem(`${STORAGE_KEY_PREFIX}_accounts`, JSON.stringify(DEFAULT_CLEAN_ACCOUNTS));
       localStorage.setItem(`${STORAGE_KEY_PREFIX}_categories`, JSON.stringify(INITIAL_CATEGORIES));
       localStorage.setItem(`${STORAGE_KEY_PREFIX}_transactions`, JSON.stringify([]));
       localStorage.setItem(`${STORAGE_KEY_PREFIX}_budgets`, JSON.stringify([]));
       localStorage.setItem(`${STORAGE_KEY_PREFIX}_goals`, JSON.stringify([]));
+      localStorage.setItem(`${STORAGE_KEY_PREFIX}_debts`, JSON.stringify([]));
     } catch (e) {
       console.warn('Failed to reset financial data in localStorage:', e);
     }
@@ -798,12 +985,14 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
     setTransactions([]);
     setBudgets([]);
     setGoals([]);
+    setDebts([]);
     try {
       localStorage.setItem(`${STORAGE_KEY_PREFIX}_user`, JSON.stringify(profile));
       localStorage.setItem(`${STORAGE_KEY_PREFIX}_accounts`, JSON.stringify(accs));
       localStorage.setItem(`${STORAGE_KEY_PREFIX}_transactions`, JSON.stringify([]));
       localStorage.setItem(`${STORAGE_KEY_PREFIX}_budgets`, JSON.stringify([]));
       localStorage.setItem(`${STORAGE_KEY_PREFIX}_goals`, JSON.stringify([]));
+      localStorage.setItem(`${STORAGE_KEY_PREFIX}_debts`, JSON.stringify([]));
     } catch (e) {
       console.warn('Failed to save session to localStorage:', e);
     }
@@ -820,11 +1009,13 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
     setTransactions([]);
     setBudgets([]);
     setGoals([]);
+    setDebts(INITIAL_DEBTS);
     try {
       localStorage.removeItem(`${STORAGE_KEY_PREFIX}_user`);
       localStorage.removeItem(`${STORAGE_KEY_PREFIX}_transactions`);
       localStorage.removeItem(`${STORAGE_KEY_PREFIX}_budgets`);
       localStorage.removeItem(`${STORAGE_KEY_PREFIX}_goals`);
+      localStorage.removeItem(`${STORAGE_KEY_PREFIX}_debts`);
       localStorage.removeItem(`${STORAGE_KEY_PREFIX}_accounts`);
     } catch (e) {
       console.warn('Failed to clear user from localStorage:', e);
@@ -876,6 +1067,11 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
         updateGoal,
         contributeGoal,
         deleteGoal,
+        debts,
+        addDebt,
+        updateDebt,
+        deleteDebt,
+        recordDebtPayment,
         loginUser,
         registerUser,
         setCleanUserSession,

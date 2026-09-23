@@ -15,6 +15,9 @@ import {
   ChevronRight,
   Eye,
   EyeOff,
+  HandCoins,
+  ArrowDownLeft,
+  ArrowUpRight,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,6 +38,7 @@ export default function DashboardPage() {
     accounts,
     categories,
     transactions,
+    debts,
     activeMonth,
     openTransactionModal,
     isPrivacyMode,
@@ -44,6 +48,14 @@ export default function DashboardPage() {
 
   const totalBalance = calculateTotalBalance(accounts, transactions);
   const monthlySummary = calculateMonthlySummary(transactions, activeMonth);
+
+  const totalActiveReceivables = debts
+    .filter((d) => d.type === 'receivable')
+    .reduce((acc, d) => acc + Math.max(0, d.total_amount - d.paid_amount), 0);
+
+  const totalActiveDebts = debts
+    .filter((d) => d.type === 'debt')
+    .reduce((acc, d) => acc + Math.max(0, d.total_amount - d.paid_amount), 0);
 
   // Recent transactions (PRD Bagian 17)
   const recentTransactions = transactions.slice(0, 5);
@@ -394,6 +406,58 @@ export default function DashboardPage() {
           </CardFooter>
         </Card>
       </div>
+
+      {/* Ringkasan Utang & Piutang Widget */}
+      <Card className="border border-zinc-200 dark:border-zinc-800 bg-linear-to-r from-zinc-50/50 to-amber-50/30 dark:from-zinc-900/50 dark:to-amber-950/10">
+        <CardContent className="p-4 sm:p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/20">
+                <HandCoins className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-zinc-950 dark:text-white flex items-center gap-2">
+                  <span>Pelacak Utang & Piutang</span>
+                  <Badge variant="default" size="sm">
+                    {debts.length} Catatan
+                  </Badge>
+                </h3>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                  Kelola hak tagih piutang Anda dan bayar kewajiban utang tepat waktu.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+              <div>
+                <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider block">
+                  Piutang Anda
+                </span>
+                <span className="text-sm font-bold font-mono text-emerald-600 dark:text-emerald-400">
+                  {formatAmount(totalActiveReceivables)}
+                </span>
+              </div>
+
+              <div>
+                <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider block">
+                  Kewajiban Utang
+                </span>
+                <span className="text-sm font-bold font-mono text-rose-600 dark:text-rose-400">
+                  {formatAmount(totalActiveDebts)}
+                </span>
+              </div>
+
+              <Link
+                href="/debts"
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-700/80 border border-zinc-200 dark:border-zinc-700 shadow-2xs inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <span>Kelola</span>
+                <ChevronRight className="h-3.5 w-3.5 text-zinc-400" />
+              </Link>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
