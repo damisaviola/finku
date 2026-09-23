@@ -9,7 +9,18 @@ export function cn(...inputs: ClassValue[]) {
 /**
  * Format number to Indonesian Rupiah (e.g. "Rp7.250.000")
  */
-export function formatRupiah(amount: number, options?: { showSign?: boolean }): string {
+export function formatRupiah(
+  amount: number,
+  options?: { showSign?: boolean; isPrivacy?: boolean }
+): string {
+  if (options?.isPrivacy) {
+    if (options?.showSign) {
+      if (amount > 0) return '+Rp••••••••';
+      if (amount < 0) return '-Rp••••••••';
+    }
+    return 'Rp••••••••';
+  }
+
   const isNegative = amount < 0;
   const absAmount = Math.abs(amount);
   

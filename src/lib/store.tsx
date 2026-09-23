@@ -10,6 +10,7 @@ import {
   INITIAL_GOALS,
 } from './mock-data';
 import { calculateAccountBalance, validateTransactionBalance } from './calculations/finance';
+import { formatRupiah } from './utils/formatters';
 import { supabase, isSupabaseConfigured } from './supabase/client';
 import { signOutSupabase } from './supabase/auth';
 
@@ -35,6 +36,12 @@ interface DompetKuContextType {
   isDarkMode: boolean;
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
   toggleTheme: () => void;
+
+  // Privacy Mode Management
+  isPrivacyMode: boolean;
+  togglePrivacyMode: () => void;
+  setPrivacyMode: (value: boolean) => void;
+  formatAmount: (amount: number, options?: { showSign?: boolean }) => string;
 
   // Font Size Management
   fontSize: FontSize;
@@ -117,6 +124,9 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
   // Theme State
   const [theme, setThemeState] = useState<'light' | 'dark' | 'system'>('system');
   const [isDarkMode, setIsDarkMode] = useState(false);
+
+  // Privacy Mode State (Sensoring balance amounts)
+  const [isPrivacyMode, setIsPrivacyMode] = useState(false);
 
   // Font Size State
   const [fontSize, setFontSizeState] = useState<FontSize>('normal');
@@ -211,6 +221,38 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  const togglePrivacyMode = useCallback(() => {
+    setIsPrivacyMode((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(`${STORAGE_KEY_PREFIX}_privacy_mode`, String(next));
+      } catch (e) {
+        console.warn('Failed to save privacy mode to localStorage:', e);
+      }
+      showToast(
+        next ? 'Mode Privasi aktif (Nominal saldo disamarkan).' : 'Mode Privasi dinonaktifkan (Nominal saldo ditampilkan).',
+        'info'
+      );
+      return next;
+    });
+  }, [showToast]);
+
+  const setPrivacyMode = useCallback((value: boolean) => {
+    setIsPrivacyMode(value);
+    try {
+      localStorage.setItem(`${STORAGE_KEY_PREFIX}_privacy_mode`, String(value));
+    } catch (e) {
+      console.warn('Failed to save privacy mode to localStorage:', e);
+    }
+  }, []);
+
+  const formatAmount = useCallback(
+    (amount: number, options?: { showSign?: boolean }) => {
+      return formatRupiah(amount, { ...options, isPrivacy: isPrivacyMode });
+    },
+    [isPrivacyMode]
+  );
+
   // Load from localStorage on client mount
   useEffect(() => {
     setIsClient(true);
@@ -269,6 +311,11 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
       const savedFontSize = localStorage.getItem(`${STORAGE_KEY_PREFIX}_fontSize`) as FontSize;
       if (savedFontSize && ['sm', 'normal', 'lg', 'xl'].includes(savedFontSize)) {
         setFontSizeState(savedFontSize);
+      }
+
+      const savedPrivacy = localStorage.getItem(`${STORAGE_KEY_PREFIX}_privacy_mode`);
+      if (savedPrivacy === 'true') {
+        setIsPrivacyMode(true);
       }
     } catch (e) {
       console.warn('Failed to parse localStorage data:', e);
@@ -801,6 +848,10 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
         isDarkMode,
         setTheme,
         toggleTheme,
+        isPrivacyMode,
+        togglePrivacyMode,
+        setPrivacyMode,
+        formatAmount,
         fontSize,
         setFontSize,
         isTransactionModalOpen,

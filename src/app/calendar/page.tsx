@@ -45,6 +45,7 @@ export default function FinancialCalendarPage() {
     openTransactionModal,
     deleteTransaction,
     showToast,
+    formatAmount,
   } = useDompetKu();
 
   // Selected date state (defaults to today's date)
@@ -334,7 +335,7 @@ export default function FinancialCalendarPage() {
             </Badge>
           </div>
           <div className="text-xl sm:text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400 tracking-tight">
-            +{formatRupiah(metrics.totalIncome)}
+            +{formatAmount(metrics.totalIncome)}
           </div>
           <p className="text-[11px] text-zinc-400 pt-1 border-t border-zinc-100 dark:border-zinc-800/80">
             Periode {formatBulan(activeMonth)}
@@ -351,7 +352,7 @@ export default function FinancialCalendarPage() {
             </Badge>
           </div>
           <div className="text-xl sm:text-2xl font-bold font-mono text-rose-600 dark:text-rose-400 tracking-tight">
-            -{formatRupiah(metrics.totalExpense)}
+            -{formatAmount(metrics.totalExpense)}
           </div>
           <p className="text-[11px] text-zinc-400 pt-1 border-t border-zinc-100 dark:border-zinc-800/80">
             Tanpa mutasi transfer internal
@@ -379,8 +380,7 @@ export default function FinancialCalendarPage() {
               metrics.netCashflow >= 0 ? 'text-zinc-950 dark:text-white' : 'text-rose-600 dark:text-rose-400'
             )}
           >
-            {metrics.netCashflow >= 0 ? '+' : ''}
-            {formatRupiah(metrics.netCashflow)}
+            {formatAmount(metrics.netCashflow, { showSign: true })}
           </div>
           <p className="text-[11px] text-zinc-400 pt-1 border-t border-zinc-100 dark:border-zinc-800/80">
             Selisih penerimaan dan belanja
@@ -396,13 +396,13 @@ export default function FinancialCalendarPage() {
             </span>
           </div>
           <div className="text-xl sm:text-2xl font-bold font-mono text-zinc-950 dark:text-white tracking-tight">
-            {formatRupiah(metrics.dailyAverageExpense)}
+            {formatAmount(metrics.dailyAverageExpense)}
             <span className="text-xs font-normal text-zinc-400">/hari</span>
           </div>
           <p className="text-[11px] text-zinc-400 pt-1 border-t border-zinc-100 dark:border-zinc-800/80 truncate">
             {metrics.peakSpendingDay ? (
               <span>
-                🔥 Hari terboros: <strong>{formatTanggal(metrics.peakSpendingDay.date)}</strong> ({formatRupiah(metrics.peakSpendingDay.amount)})
+                🔥 Hari terboros: <strong>{formatTanggal(metrics.peakSpendingDay.date)}</strong> ({formatAmount(metrics.peakSpendingDay.amount)})
               </span>
             ) : (
               <span>Belum ada transaksi bulan ini</span>
@@ -649,9 +649,9 @@ export default function FinancialCalendarPage() {
                                   : 'text-zinc-800 dark:text-zinc-200'
                               )}
                             >
-                              {tx.type === 'income' && `+${formatRupiah(tx.amount)}`}
-                              {tx.type === 'expense' && `-${formatRupiah(tx.amount)}`}
-                              {tx.type === 'transfer' && formatRupiah(tx.amount)}
+                              {tx.type === 'income' && `+${formatAmount(tx.amount)}`}
+                              {tx.type === 'expense' && `-${formatAmount(tx.amount)}`}
+                              {tx.type === 'transfer' && formatAmount(tx.amount)}
                             </span>
 
                             {/* Action Buttons on Hover */}

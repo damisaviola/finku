@@ -33,6 +33,7 @@ export default function GoalsPage() {
     updateGoal,
     contributeGoal,
     deleteGoal,
+    formatAmount,
   } = useDompetKu();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -245,7 +246,7 @@ export default function GoalsPage() {
                   <div className="space-y-1">
                     <div className="flex justify-between text-xs font-mono">
                       <span className="text-zinc-500">
-                        Terkumpul: {formatRupiah(goal.current_amount)}
+                        Terkumpul: {formatAmount(goal.current_amount)}
                       </span>
                       <span className="font-bold text-amber-600 dark:text-amber-400">
                         {percentage}%
@@ -259,13 +260,13 @@ export default function GoalsPage() {
                     <div>
                       <span className="text-zinc-400 block text-[10px]">Plafon Target</span>
                       <span className="font-mono font-bold text-zinc-900 dark:text-white">
-                        {formatRupiah(goal.target_amount)}
+                        {formatAmount(goal.target_amount)}
                       </span>
                     </div>
                     <div className="text-right">
                       <span className="text-zinc-400 block text-[10px]">Kurang</span>
                       <span className="font-mono font-bold text-zinc-900 dark:text-white">
-                        {formatRupiah(remaining)}
+                        {formatAmount(remaining)}
                       </span>
                     </div>
                   </div>

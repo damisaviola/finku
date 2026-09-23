@@ -13,6 +13,8 @@ import {
   CreditCard,
   Percent,
   ChevronRight,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,6 +37,9 @@ export default function DashboardPage() {
     transactions,
     activeMonth,
     openTransactionModal,
+    isPrivacyMode,
+    togglePrivacyMode,
+    formatAmount,
   } = useDompetKu();
 
   const totalBalance = calculateTotalBalance(accounts, transactions);
@@ -118,13 +123,28 @@ export default function DashboardPage() {
         {/* Total Saldo */}
         <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-xs ring-1 ring-zinc-950/5 dark:ring-white/5 space-y-2">
           <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400 font-medium">
-            <span>Total Saldo</span>
+            <div className="flex items-center gap-1.5">
+              <span>Total Saldo</span>
+              <button
+                onClick={togglePrivacyMode}
+                type="button"
+                aria-label={isPrivacyMode ? 'Tampilkan nominal saldo' : 'Sembunyikan nominal saldo (Mode Privasi)'}
+                title={isPrivacyMode ? 'Tampilkan Saldo' : 'Sembunyikan Saldo'}
+                className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors cursor-pointer"
+              >
+                {isPrivacyMode ? (
+                  <EyeOff className="h-3.5 w-3.5 text-amber-500" />
+                ) : (
+                  <Eye className="h-3.5 w-3.5" />
+                )}
+              </button>
+            </div>
             <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
               {accounts.filter((a) => a.is_active).length} Rekening
             </span>
           </div>
           <div className="text-2xl font-bold font-mono text-zinc-950 dark:text-white tracking-tight">
-            {formatRupiah(totalBalance)}
+            {formatAmount(totalBalance)}
           </div>
           <p className="text-[11px] text-zinc-500 dark:text-zinc-400 pt-1 border-t border-zinc-100 dark:border-zinc-800/80">
             Seluruh saldo rekening aktif saat ini
@@ -141,7 +161,7 @@ export default function DashboardPage() {
             </Badge>
           </div>
           <div className="text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400 tracking-tight">
-            +{formatRupiah(monthlySummary.income)}
+            +{formatAmount(monthlySummary.income)}
           </div>
           <p className="text-[11px] text-zinc-500 dark:text-zinc-400 pt-1 border-t border-zinc-100 dark:border-zinc-800/80">
             Total penerimaan bulan {formatBulan(activeMonth)}
@@ -158,7 +178,7 @@ export default function DashboardPage() {
             </Badge>
           </div>
           <div className="text-2xl font-bold font-mono text-rose-600 dark:text-rose-400 tracking-tight">
-            -{formatRupiah(monthlySummary.expense)}
+            -{formatAmount(monthlySummary.expense)}
           </div>
           <p className="text-[11px] text-zinc-500 dark:text-zinc-400 pt-1 border-t border-zinc-100 dark:border-zinc-800/80">
             Tanpa mutasi transfer antar rekening
@@ -174,7 +194,7 @@ export default function DashboardPage() {
             </Badge>
           </div>
           <div className="text-2xl font-bold font-mono text-zinc-950 dark:text-white tracking-tight">
-            {formatRupiah(monthlySummary.savings)}
+            {formatAmount(monthlySummary.savings)}
           </div>
           <p className="text-[11px] text-zinc-500 dark:text-zinc-400 pt-1 border-t border-zinc-100 dark:border-zinc-800/80">
             Pemasukan dikurangi pengeluaran
@@ -262,7 +282,7 @@ export default function DashboardPage() {
                         </div>
                       </div>
                       <div className="text-right font-mono text-xs font-bold text-zinc-950 dark:text-white">
-                        {formatRupiah(currentBal)}
+                        {formatAmount(currentBal)}
                       </div>
                     </div>
                   );
@@ -273,7 +293,7 @@ export default function DashboardPage() {
           <CardFooter className="justify-between text-xs text-zinc-500">
             <span>Total Aktif: {accounts.length} Rekening</span>
             <span className="font-mono font-bold text-zinc-900 dark:text-white">
-              {formatRupiah(totalBalance)}
+              {formatAmount(totalBalance)}
             </span>
           </CardFooter>
         </Card>
@@ -350,9 +370,9 @@ export default function DashboardPage() {
                                   : 'text-zinc-700 dark:text-zinc-300'
                               }
                             >
-                              {t.type === 'income' && `+${formatRupiah(t.amount)}`}
-                              {t.type === 'expense' && `-${formatRupiah(t.amount)}`}
-                              {t.type === 'transfer' && formatRupiah(t.amount)}
+                              {t.type === 'income' && `+${formatAmount(t.amount)}`}
+                              {t.type === 'expense' && `-${formatAmount(t.amount)}`}
+                              {t.type === 'transfer' && formatAmount(t.amount)}
                             </span>
                           </td>
                         </tr>

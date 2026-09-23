@@ -27,6 +27,7 @@ export default function TransactionsPage() {
     categories,
     openTransactionModal,
     deleteTransaction,
+    formatAmount,
   } = useDompetKu();
 
   // Filters state (PRD Bagian 26)
@@ -308,9 +309,9 @@ export default function TransactionsPage() {
                               : 'text-zinc-700 dark:text-zinc-300'
                           }
                         >
-                          {t.type === 'income' && `+${formatRupiah(t.amount)}`}
-                          {t.type === 'expense' && `-${formatRupiah(t.amount)}`}
-                          {t.type === 'transfer' && formatRupiah(t.amount)}
+                          {t.type === 'income' && `+${formatAmount(t.amount)}`}
+                          {t.type === 'expense' && `-${formatAmount(t.amount)}`}
+                          {t.type === 'transfer' && formatAmount(t.amount)}
                         </span>
                       </td>
                       <td className="px-5 py-3 text-right whitespace-nowrap">

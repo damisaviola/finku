@@ -3,14 +3,14 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Plus, ChevronRight, Calendar, Sun, Moon } from 'lucide-react';
+import { Plus, ChevronRight, Calendar, Sun, Moon, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useDompetKu } from '@/lib/store';
 import { formatBulan } from '@/lib/utils/formatters';
 
 export function Header() {
   const pathname = usePathname();
-  const { openTransactionModal, activeMonth, isDarkMode, toggleTheme } = useDompetKu();
+  const { openTransactionModal, activeMonth, isDarkMode, toggleTheme, isPrivacyMode, togglePrivacyMode } = useDompetKu();
 
   const getBreadcrumbs = () => {
     if (pathname.startsWith('/dashboard')) {
@@ -79,9 +79,29 @@ export function Header() {
           <span>{formatBulan(activeMonth)}</span>
         </div>
 
+        {/* Privacy Mode (Sensor Saldo) Button */}
+        <button
+          onClick={togglePrivacyMode}
+          type="button"
+          aria-label={isPrivacyMode ? 'Tampilkan nominal saldo' : 'Sembunyikan nominal saldo (Mode Privasi)'}
+          title={isPrivacyMode ? 'Mode Privasi Aktif: Klik untuk tampilkan saldo' : 'Sembunyikan Saldo (Mode Privasi)'}
+          className={`p-2 rounded-lg transition-colors shadow-xs cursor-pointer ${
+            isPrivacyMode
+              ? 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30'
+              : 'text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700/80'
+          }`}
+        >
+          {isPrivacyMode ? (
+            <EyeOff className="h-4 w-4" />
+          ) : (
+            <Eye className="h-4 w-4" />
+          )}
+        </button>
+
         {/* Filament Theme Switcher Button */}
         <button
           onClick={toggleTheme}
+          type="button"
           aria-label={isDarkMode ? 'Beralih ke mode terang' : 'Beralih ke mode gelap'}
           title={isDarkMode ? 'Mode Terang' : 'Mode Gelap'}
           className="p-2 rounded-lg text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700/80 transition-colors shadow-xs"

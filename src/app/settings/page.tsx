@@ -31,7 +31,7 @@ import { FontSize } from '@/types';
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { user, updateUser, resetToDemoData, logout, showToast, fontSize, setFontSize } = useDompetKu();
+  const { user, updateUser, resetToDemoData, logout, showToast, fontSize, setFontSize, isPrivacyMode, togglePrivacyMode } = useDompetKu();
 
   const isGoogleUser = user?.provider === 'google' || Boolean(user?.avatar_url?.includes('googleusercontent.com'));
 
@@ -251,6 +251,40 @@ export default function SettingsPage() {
                 </select>
               </div>
             </div>
+          </div>
+
+          {/* Mode Privasi / Sensor Saldo */}
+          <div className="flex items-center justify-between p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/50">
+            <div className="space-y-0.5 pr-4">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                  Mode Privasi (Sensor Saldo)
+                </span>
+                {isPrivacyMode && (
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-bold">
+                    AKTIF
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                Samarkan angka saldo dan mutasi menjadi <code className="font-mono text-amber-600 dark:text-amber-400">Rp••••••••</code> untuk kenyamanan saat membuka aplikasi di tempat umum.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={togglePrivacyMode}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                isPrivacyMode ? 'bg-amber-500' : 'bg-zinc-300 dark:bg-zinc-700'
+              }`}
+              role="switch"
+              aria-checked={isPrivacyMode}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                  isPrivacyMode ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
           </div>
 
           {/* Tema Antarmuka */}

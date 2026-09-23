@@ -32,6 +32,7 @@ export default function AccountsPage() {
     addAccount,
     updateAccount,
     deleteAccount,
+    formatAmount,
   } = useDompetKu();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -207,7 +208,7 @@ export default function AccountsPage() {
                     Saldo Saat Ini
                   </span>
                   <div className="text-xl font-bold font-mono text-zinc-950 dark:text-white mt-0.5">
-                    {formatRupiah(currentBalance)}
+                    {formatAmount(currentBalance)}
                   </div>
                 </div>
               </div>
@@ -217,25 +218,25 @@ export default function AccountsPage() {
                 <div>
                   <span className="text-zinc-400 block text-[10px]">Saldo Awal</span>
                   <span className="font-mono text-zinc-700 dark:text-zinc-300 font-medium">
-                    {formatRupiah(acc.initial_balance)}
+                    {formatAmount(acc.initial_balance)}
                   </span>
                 </div>
                 <div>
                   <span className="text-zinc-400 block text-[10px]">Pemasukan</span>
                   <span className="font-mono text-emerald-600 dark:text-emerald-400 font-medium">
-                    +{formatRupiah(incomeTotal + transferInTotal)}
+                    +{formatAmount(incomeTotal + transferInTotal)}
                   </span>
                 </div>
                 <div>
                   <span className="text-zinc-400 block text-[10px]">Pengeluaran</span>
                   <span className="font-mono text-rose-600 dark:text-rose-400 font-medium">
-                    -{formatRupiah(expenseTotal)}
+                    -{formatAmount(expenseTotal)}
                   </span>
                 </div>
                 <div>
                   <span className="text-zinc-400 block text-[10px]">Mutasi Keluar</span>
                   <span className="font-mono text-zinc-600 dark:text-zinc-400 font-medium">
-                    -{formatRupiah(transferOutTotal)}
+                    -{formatAmount(transferOutTotal)}
                   </span>
                 </div>
               </div>

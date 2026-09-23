@@ -35,6 +35,7 @@ export default function BudgetsPage() {
     addBudget,
     updateBudget,
     deleteBudget,
+    formatAmount,
   } = useDompetKu();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -138,7 +139,7 @@ export default function BudgetsPage() {
         <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-xs ring-1 ring-zinc-950/5 dark:ring-white/5 space-y-1">
           <span className="text-xs text-zinc-400 font-medium">Total Anggaran Dialokasikan</span>
           <div className="text-xl font-bold font-mono text-zinc-950 dark:text-white">
-            {formatRupiah(totalBudgeted)}
+            {formatAmount(totalBudgeted)}
           </div>
           <p className="text-[11px] text-zinc-400">Untuk {currentBudgets.length} pos kategori belanja</p>
         </div>
@@ -146,7 +147,7 @@ export default function BudgetsPage() {
         <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-xs ring-1 ring-zinc-950/5 dark:ring-white/5 space-y-1">
           <span className="text-xs text-zinc-400 font-medium">Total Realisasi Terpakai</span>
           <div className="text-xl font-bold font-mono text-zinc-950 dark:text-white">
-            {formatRupiah(totalUsed)}
+            {formatAmount(totalUsed)}
           </div>
           <p className="text-[11px] text-zinc-400">{overallPercentage}% dari total alokasi</p>
         </div>
@@ -154,7 +155,7 @@ export default function BudgetsPage() {
         <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-xs ring-1 ring-zinc-950/5 dark:ring-white/5 space-y-1">
           <span className="text-xs text-zinc-400 font-medium">Sisa Batas Anggaran</span>
           <div className="text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400">
-            {formatRupiah(Math.max(0, totalBudgeted - totalUsed))}
+            {formatAmount(Math.max(0, totalBudgeted - totalUsed))}
           </div>
           <p className="text-[11px] text-zinc-400">Dana yang masih dapat dibelanjakan</p>
         </div>
@@ -248,7 +249,7 @@ export default function BudgetsPage() {
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs font-mono">
                     <span className="text-zinc-500">
-                      Terpakai: {formatRupiah(prog.used)}
+                      Terpakai: {formatAmount(prog.used)}
                     </span>
                     <span
                       className={
@@ -269,14 +270,14 @@ export default function BudgetsPage() {
                 <div className="grid grid-cols-3 gap-2 pt-3 border-t border-zinc-100 dark:border-zinc-800/80 text-xs">
                   <div>
                     <span className="text-zinc-400 block text-[10px]">Anggaran</span>
-                    <span className="font-mono font-bold text-zinc-900 dark:text-white">
-                      {formatRupiah(bgt.amount)}
+                    <span className="font-mono font-bold text-zinc-950 dark:text-white">
+                      {formatAmount(bgt.amount)}
                     </span>
                   </div>
                   <div>
                     <span className="text-zinc-400 block text-[10px]">Terpakai</span>
-                    <span className="font-mono font-bold text-zinc-900 dark:text-white">
-                      {formatRupiah(prog.used)}
+                    <span className="font-mono font-bold text-zinc-950 dark:text-white">
+                      {formatAmount(prog.used)}
                     </span>
                   </div>
                   <div className="text-right">
@@ -287,8 +288,8 @@ export default function BudgetsPage() {
                       }`}
                     >
                       {prog.remaining < 0
-                        ? `-${formatRupiah(Math.abs(prog.remaining))}`
-                        : formatRupiah(prog.remaining)}
+                        ? `-${formatAmount(Math.abs(prog.remaining))}`
+                        : formatAmount(prog.remaining)}
                     </span>
                   </div>
                 </div>
