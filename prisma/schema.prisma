@@ -30,6 +30,7 @@ model Account {
   user_id                  String        @db.Uuid
   name                     String        @db.VarChar(100)
   type                     String        @db.VarChar(50)
+  account_number           String?       @db.VarChar(50)
   initial_balance          Decimal       @default(0) @db.Decimal(15, 2)
   currency                 String        @default("IDR") @db.VarChar(10)
   icon                     String?       @db.VarChar(50)

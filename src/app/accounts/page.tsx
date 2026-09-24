@@ -12,6 +12,7 @@ import {
   Trash2,
   FileText,
   Coins,
+  CreditCard,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,6 +43,7 @@ export default function AccountsPage() {
   // Form State
   const [name, setName] = useState('');
   const [type, setType] = useState<AccountType>('Bank');
+  const [accountNumber, setAccountNumber] = useState('');
   const [initialBalanceStr, setInitialBalanceStr] = useState('');
   const [currency, setCurrency] = useState('IDR');
   const [color, setColor] = useState('#3b82f6');
@@ -53,6 +55,7 @@ export default function AccountsPage() {
       setEditingAccount(acc);
       setName(acc.name);
       setType(acc.type);
+      setAccountNumber(acc.account_number || '');
       setInitialBalanceStr(String(acc.initial_balance));
       setCurrency(acc.currency);
       setColor(acc.color || '#3b82f6');
@@ -60,6 +63,7 @@ export default function AccountsPage() {
       setEditingAccount(null);
       setName('');
       setType('Bank');
+      setAccountNumber('');
       setInitialBalanceStr('');
       setCurrency('IDR');
       setColor('#3b82f6');
@@ -85,10 +89,13 @@ export default function AccountsPage() {
       return;
     }
 
+    const resolvedAccountNumber = type === 'Bank' && accountNumber.trim() ? accountNumber.trim() : undefined;
+
     if (editingAccount) {
       updateAccount(editingAccount.id, {
         name: name.trim(),
         type,
+        account_number: resolvedAccountNumber,
         initial_balance: initialBalance,
         currency,
         color,
@@ -97,6 +104,7 @@ export default function AccountsPage() {
       addAccount({
         name: name.trim(),
         type,
+        account_number: resolvedAccountNumber,
         initial_balance: initialBalance,
         currency,
         color,
@@ -196,9 +204,17 @@ export default function AccountsPage() {
                       <h3 className="text-sm font-semibold text-zinc-950 dark:text-white">
                         {acc.name}
                       </h3>
-                      <Badge variant="default" size="sm" dot={false} className="mt-0.5">
-                        {acc.type}
-                      </Badge>
+                      <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                        <Badge variant="default" size="sm" dot={false}>
+                          {acc.type}
+                        </Badge>
+                        {acc.type === 'Bank' && acc.account_number && (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-mono text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded border border-zinc-200/60 dark:border-zinc-700/60">
+                            <CreditCard className="h-3 w-3 text-zinc-400" />
+                            <span>{acc.account_number}</span>
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -314,6 +330,17 @@ export default function AccountsPage() {
             <option value="Tabungan">Tabungan</option>
             <option value="Lainnya">Lainnya</option>
           </Select>
+
+          {type === 'Bank' && (
+            <Input
+              label="Nomor Rekening"
+              placeholder="Contoh: 1234567890 (BCA, Mandiri, BRI, dll)"
+              leadingIcon={<CreditCard className="h-4 w-4" />}
+              value={accountNumber}
+              onChange={(e) => setAccountNumber(e.target.value)}
+              helperText="Nomor rekening bank untuk kemudahan referensi pencatatan Anda."
+            />
+          )}
 
           <RupiahInput
             label="Saldo Awal"

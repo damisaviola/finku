@@ -53,6 +53,7 @@ export async function POST(request: Request) {
         id: acc.id,
         name: acc.name,
         type: acc.type,
+        account_number: acc.account_number || undefined,
         initial_balance: Number(acc.initial_balance),
         currency: acc.currency || 'IDR',
         color: acc.color || '#3b82f6',

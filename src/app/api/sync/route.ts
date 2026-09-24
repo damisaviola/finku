@@ -141,6 +141,7 @@ export async function GET(request: Request) {
         id: acc.id,
         name: acc.name,
         type: acc.type,
+        account_number: acc.account_number || undefined,
         initial_balance: Number(acc.initial_balance),
         currency: acc.currency,
         color: acc.color || '#3b82f6',
@@ -249,6 +250,7 @@ export async function POST(request: Request) {
             user_id: userId,
             name: data.name,
             type: data.type,
+            account_number: data.account_number || null,
             initial_balance: data.initial_balance || 0,
             currency: data.currency || 'IDR',
             color: data.color || '#3b82f6',
@@ -258,6 +260,7 @@ export async function POST(request: Request) {
           update: {
             name: data.name,
             type: data.type,
+            account_number: data.account_number || null,
             initial_balance: data.initial_balance,
             currency: data.currency,
             color: data.color,
