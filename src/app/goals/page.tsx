@@ -53,9 +53,12 @@ export default function GoalsPage() {
   const [targetDate, setTargetDate] = useState('');
   const [description, setDescription] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [isContributing, setIsContributing] = useState(false);
 
   const handleOpenModal = (g?: Goal) => {
     setErrors({});
+    setIsSaving(false);
     if (g) {
       setEditingGoal(g);
       setName(g.name);
@@ -74,7 +77,7 @@ export default function GoalsPage() {
     setIsModalOpen(true);
   };
 
-  const handleSaveGoal = (e: React.FormEvent) => {
+  const handleSaveGoal = async (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: Record<string, string> = {};
 
@@ -97,25 +100,32 @@ export default function GoalsPage() {
       return;
     }
 
-    if (editingGoal) {
-      updateGoal(editingGoal.id, {
-        name: name.trim(),
-        target_amount: targetAmount,
-        current_amount: currentAmount,
-        target_date: targetDate || undefined,
-        description: description.trim() || undefined,
-      });
-    } else {
-      addGoal({
-        name: name.trim(),
-        target_amount: targetAmount,
-        current_amount: currentAmount,
-        target_date: targetDate || undefined,
-        description: description.trim() || undefined,
-      });
-    }
+    setIsSaving(true);
+    try {
+      if (editingGoal) {
+        const success = await updateGoal(editingGoal.id, {
+          name: name.trim(),
+          target_amount: targetAmount,
+          current_amount: currentAmount,
+          target_date: targetDate || undefined,
+          description: description.trim() || undefined,
+        });
+        if (!success) return;
+      } else {
+        const success = await addGoal({
+          name: name.trim(),
+          target_amount: targetAmount,
+          current_amount: currentAmount,
+          target_date: targetDate || undefined,
+          description: description.trim() || undefined,
+        });
+        if (!success) return;
+      }
 
-    setIsModalOpen(false);
+      setIsModalOpen(false);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleOpenContribute = (g: Goal) => {
@@ -123,9 +133,10 @@ export default function GoalsPage() {
     setDepositAmountStr('');
     setDepositAccountId(accounts[0]?.id || '');
     setDepositError('');
+    setIsContributing(false);
   };
 
-  const handleConfirmContribute = (e: React.FormEvent) => {
+  const handleConfirmContribute = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!contributeTargetGoal) return;
 
@@ -135,9 +146,14 @@ export default function GoalsPage() {
       return;
     }
 
-    const success = contributeGoal(contributeTargetGoal.id, amount, depositAccountId);
-    if (success) {
-      setContributeTargetGoal(null);
+    setIsContributing(true);
+    try {
+      const success = await contributeGoal(contributeTargetGoal.id, amount, depositAccountId);
+      if (success) {
+        setContributeTargetGoal(null);
+      }
+    } finally {
+      setIsContributing(false);
     }
   };
 
@@ -360,7 +376,7 @@ export default function GoalsPage() {
             <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)}>
               Batal
             </Button>
-            <Button type="submit" variant="primary">
+            <Button type="submit" variant="primary" disabled={isSaving} isLoading={isSaving}>
               Simpan Target
             </Button>
           </DialogFooter>
@@ -415,7 +431,7 @@ export default function GoalsPage() {
               >
                 Batal
               </Button>
-              <Button type="submit" variant="primary">
+              <Button type="submit" variant="primary" disabled={isContributing} isLoading={isContributing}>
                 Simpan Setoran
               </Button>
             </DialogFooter>
@@ -428,8 +444,8 @@ export default function GoalsPage() {
         <ConfirmDialog
           isOpen={!!goalToDelete}
           onClose={() => setGoalToDelete(null)}
-          onConfirm={() => {
-            deleteGoal(goalToDelete.id);
+          onConfirm={async () => {
+            await deleteGoal(goalToDelete.id);
             setGoalToDelete(null);
           }}
           title="Hapus Target Tabungan?"

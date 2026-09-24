@@ -700,7 +700,23 @@ export async function POST(request: Request) {
             is_active: data.is_active,
           },
         });
-        return NextResponse.json({ success: true, id: result.id });
+        return NextResponse.json({
+          success: true,
+          id: result.id,
+          account: {
+            id: result.id,
+            name: result.name,
+            type: result.type,
+            account_number: result.account_number || undefined,
+            initial_balance: Number(result.initial_balance),
+            currency: result.currency,
+            color: result.color || '#3b82f6',
+            icon: result.icon || 'Wallet',
+            is_active: result.is_active,
+            created_at: result.created_at.toISOString(),
+            updated_at: result.updated_at.toISOString(),
+          },
+        });
       }
 
       case 'deleteAccount': {
@@ -708,7 +724,7 @@ export async function POST(request: Request) {
         await prisma.account.deleteMany({
           where: { id, user_id: userId },
         });
-        return NextResponse.json({ success: true });
+        return NextResponse.json({ success: true, id });
       }
 
       // 2. CATEGORIES
@@ -733,7 +749,20 @@ export async function POST(request: Request) {
             is_active: data.is_active,
           },
         });
-        return NextResponse.json({ success: true, id: result.id });
+        return NextResponse.json({
+          success: true,
+          id: result.id,
+          category: {
+            id: result.id,
+            name: result.name,
+            type: result.type,
+            icon: result.icon || 'Tag',
+            color: result.color || '#3b82f6',
+            is_active: result.is_active,
+            created_at: result.created_at.toISOString(),
+            updated_at: result.updated_at.toISOString(),
+          },
+        });
       }
 
       case 'deleteCategory': {
@@ -741,20 +770,23 @@ export async function POST(request: Request) {
         await prisma.category.deleteMany({
           where: { id, user_id: userId },
         });
-        return NextResponse.json({ success: true });
+        return NextResponse.json({ success: true, id });
       }
 
       // 3. TRANSACTIONS
       case 'upsertTransaction': {
         const txId = toValidUuid(data.id);
-        const sourceAccId = safeUuid(data.account_id);
-        if (!sourceAccId) {
-          return NextResponse.json({ error: 'Rekening asal tidak valid' }, { status: 400 });
-        }
+        let sourceAccId = safeUuid(data.account_id);
+        let sourceExists = sourceAccId ? await prisma.account.findUnique({ where: { id: sourceAccId } }) : null;
 
-        const sourceExists = await prisma.account.findUnique({ where: { id: sourceAccId } });
         if (!sourceExists) {
-          return NextResponse.json({ error: 'Rekening asal tidak ditemukan di database' }, { status: 400 });
+          // Cari rekening user yang tersedia di database
+          const fallbackAcc = await prisma.account.findFirst({ where: { user_id: userId } });
+          if (!fallbackAcc) {
+            return NextResponse.json({ error: 'Anda belum memiliki rekening di database. Silakan buat rekening terlebih dahulu di menu Rekening.' }, { status: 400 });
+          }
+          sourceAccId = fallbackAcc.id;
+          sourceExists = fallbackAcc;
         }
 
         const destAccId = safeUuid(data.destination_account_id);
@@ -778,7 +810,7 @@ export async function POST(request: Request) {
             user_id: userId,
             type: data.type,
             amount: data.amount,
-            account_id: sourceAccId,
+            account_id: sourceAccId!,
             destination_account_id: validDestAccId,
             category_id: validCatId,
             description: data.description,
@@ -788,7 +820,7 @@ export async function POST(request: Request) {
           update: {
             type: data.type,
             amount: data.amount,
-            account_id: sourceAccId,
+            account_id: sourceAccId!,
             destination_account_id: validDestAccId,
             category_id: validCatId,
             description: data.description,
@@ -796,7 +828,24 @@ export async function POST(request: Request) {
             notes: data.notes || null,
           },
         });
-        return NextResponse.json({ success: true, id: result.id });
+
+        return NextResponse.json({
+          success: true,
+          id: result.id,
+          transaction: {
+            id: result.id,
+            type: result.type,
+            amount: Number(result.amount),
+            account_id: result.account_id,
+            destination_account_id: result.destination_account_id || undefined,
+            category_id: result.category_id || undefined,
+            description: result.description,
+            date: result.date instanceof Date ? result.date.toISOString().split('T')[0] : String(result.date).split('T')[0],
+            notes: result.notes || undefined,
+            created_at: result.created_at.toISOString(),
+            updated_at: result.updated_at.toISOString(),
+          },
+        });
       }
 
       case 'deleteTransaction': {
@@ -804,7 +853,7 @@ export async function POST(request: Request) {
         await prisma.transaction.deleteMany({
           where: { id, user_id: userId },
         });
-        return NextResponse.json({ success: true });
+        return NextResponse.json({ success: true, id });
       }
 
       // 4. BUDGETS
@@ -839,7 +888,18 @@ export async function POST(request: Request) {
             amount: data.amount,
           },
         });
-        return NextResponse.json({ success: true, id: result.id });
+        return NextResponse.json({
+          success: true,
+          id: result.id,
+          budget: {
+            id: result.id,
+            category_id: result.category_id,
+            amount: Number(result.amount),
+            month: result.month,
+            created_at: result.created_at.toISOString(),
+            updated_at: result.updated_at.toISOString(),
+          },
+        });
       }
 
       case 'deleteBudget': {
@@ -847,7 +907,7 @@ export async function POST(request: Request) {
         await prisma.budget.deleteMany({
           where: { id, user_id: userId },
         });
-        return NextResponse.json({ success: true });
+        return NextResponse.json({ success: true, id });
       }
 
       // 5. GOALS
@@ -872,7 +932,22 @@ export async function POST(request: Request) {
             description: data.description || null,
           },
         });
-        return NextResponse.json({ success: true, id: result.id });
+        return NextResponse.json({
+          success: true,
+          id: result.id,
+          goal: {
+            id: result.id,
+            name: result.name,
+            target_amount: Number(result.target_amount),
+            current_amount: Number(result.current_amount),
+            target_date: result.target_date ? (result.target_date instanceof Date ? result.target_date.toISOString().split('T')[0] : String(result.target_date).split('T')[0]) : '',
+            description: result.description || undefined,
+            color: '#10b981',
+            icon: 'Target',
+            created_at: result.created_at.toISOString(),
+            updated_at: result.updated_at.toISOString(),
+          },
+        });
       }
 
       case 'deleteGoal': {
@@ -880,7 +955,7 @@ export async function POST(request: Request) {
         await prisma.goal.deleteMany({
           where: { id, user_id: userId },
         });
-        return NextResponse.json({ success: true });
+        return NextResponse.json({ success: true, id });
       }
 
       // 6. DEBTS
@@ -917,8 +992,39 @@ export async function POST(request: Request) {
             account_id: validAccId,
             notes: data.notes || null,
           },
+          include: {
+            payments: {
+              orderBy: { payment_date: 'asc' },
+            },
+          },
         });
-        return NextResponse.json({ success: true, id: result.id });
+
+        return NextResponse.json({
+          success: true,
+          id: result.id,
+          debt: {
+            id: result.id,
+            type: result.type,
+            person_name: result.person_name,
+            phone_number: result.phone_number || undefined,
+            total_amount: Number(result.total_amount),
+            paid_amount: Number(result.paid_amount),
+            due_date: result.due_date ? (result.due_date instanceof Date ? result.due_date.toISOString().split('T')[0] : String(result.due_date).split('T')[0]) : undefined,
+            account_id: result.account_id || undefined,
+            notes: result.notes || undefined,
+            created_at: result.created_at.toISOString(),
+            updated_at: result.updated_at.toISOString(),
+            payments: (result.payments || []).map((p) => ({
+              id: p.id,
+              debt_id: p.debt_id,
+              amount: Number(p.amount),
+              payment_date: p.payment_date instanceof Date ? p.payment_date.toISOString().split('T')[0] : String(p.payment_date).split('T')[0],
+              account_id: p.account_id || undefined,
+              notes: p.notes || undefined,
+              created_at: p.created_at.toISOString(),
+            })),
+          },
+        });
       }
 
       case 'deleteDebt': {
@@ -926,7 +1032,7 @@ export async function POST(request: Request) {
         await prisma.debt.deleteMany({
           where: { id, user_id: userId },
         });
-        return NextResponse.json({ success: true });
+        return NextResponse.json({ success: true, id });
       }
 
       case 'recordDebtPayment': {
@@ -956,17 +1062,47 @@ export async function POST(request: Request) {
           },
         });
 
-        // Update paid_amount pada debt
-        await prisma.debt.update({
+        // Update paid_amount pada debt dan ambil data utang lengkap terkini
+        const updatedDebt = await prisma.debt.update({
           where: { id: debtId },
           data: {
             paid_amount: {
               increment: payment.amount,
             },
           },
+          include: {
+            payments: {
+              orderBy: { payment_date: 'asc' },
+            },
+          },
         });
 
-        return NextResponse.json({ success: true, id: newPayment.id });
+        return NextResponse.json({
+          success: true,
+          id: newPayment.id,
+          debt: {
+            id: updatedDebt.id,
+            type: updatedDebt.type,
+            person_name: updatedDebt.person_name,
+            phone_number: updatedDebt.phone_number || undefined,
+            total_amount: Number(updatedDebt.total_amount),
+            paid_amount: Number(updatedDebt.paid_amount),
+            due_date: updatedDebt.due_date ? (updatedDebt.due_date instanceof Date ? updatedDebt.due_date.toISOString().split('T')[0] : String(updatedDebt.due_date).split('T')[0]) : undefined,
+            account_id: updatedDebt.account_id || undefined,
+            notes: updatedDebt.notes || undefined,
+            created_at: updatedDebt.created_at.toISOString(),
+            updated_at: updatedDebt.updated_at.toISOString(),
+            payments: (updatedDebt.payments || []).map((p) => ({
+              id: p.id,
+              debt_id: p.debt_id,
+              amount: Number(p.amount),
+              payment_date: p.payment_date instanceof Date ? p.payment_date.toISOString().split('T')[0] : String(p.payment_date).split('T')[0],
+              account_id: p.account_id || undefined,
+              notes: p.notes || undefined,
+              created_at: p.created_at.toISOString(),
+            })),
+          },
+        });
       }
 
       default:

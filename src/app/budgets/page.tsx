@@ -47,11 +47,13 @@ export default function BudgetsPage() {
   const [amountStr, setAmountStr] = useState('');
   const [month, setMonth] = useState(activeMonth);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSaving, setIsSaving] = useState(false);
 
   const expenseCategories = categories.filter((c) => c.type === 'expense');
 
   const handleOpenModal = (bgt?: Budget) => {
     setErrors({});
+    setIsSaving(false);
     if (bgt) {
       setEditingBudget(bgt);
       setCategoryId(bgt.category_id);
@@ -66,7 +68,7 @@ export default function BudgetsPage() {
     setIsModalOpen(true);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: Record<string, string> = {};
 
@@ -84,21 +86,28 @@ export default function BudgetsPage() {
       return;
     }
 
-    if (editingBudget) {
-      updateBudget(editingBudget.id, {
-        category_id: categoryId,
-        amount,
-        month,
-      });
-    } else {
-      addBudget({
-        category_id: categoryId,
-        amount,
-        month,
-      });
-    }
+    setIsSaving(true);
+    try {
+      if (editingBudget) {
+        const success = await updateBudget(editingBudget.id, {
+          category_id: categoryId,
+          amount,
+          month,
+        });
+        if (!success) return;
+      } else {
+        const success = await addBudget({
+          category_id: categoryId,
+          amount,
+          month,
+        });
+        if (!success) return;
+      }
 
-    setIsModalOpen(false);
+      setIsModalOpen(false);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const currentBudgets = budgets.filter((b) => b.month === activeMonth);
@@ -352,7 +361,7 @@ export default function BudgetsPage() {
             <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)}>
               Batal
             </Button>
-            <Button type="submit" variant="primary">
+            <Button type="submit" variant="primary" disabled={isSaving} isLoading={isSaving}>
               Simpan Anggaran
             </Button>
           </DialogFooter>
@@ -364,8 +373,8 @@ export default function BudgetsPage() {
         <ConfirmDialog
           isOpen={!!budgetToDelete}
           onClose={() => setBudgetToDelete(null)}
-          onConfirm={() => {
-            deleteBudget(budgetToDelete.id);
+          onConfirm={async () => {
+            await deleteBudget(budgetToDelete.id);
             setBudgetToDelete(null);
           }}
           title="Hapus Anggaran?"

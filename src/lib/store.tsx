@@ -68,33 +68,33 @@ interface DompetKuContextType {
   openTransactionModal: (type?: TransactionType, editTx?: Transaction | null, initialDate?: string | null) => void;
   closeTransactionModal: () => void;
 
-  // Actions
-  addTransaction: (data: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>) => boolean;
-  updateTransaction: (id: string, data: Partial<Transaction>) => boolean;
-  deleteTransaction: (id: string) => boolean;
+  // Actions (Direct Database Operations)
+  addTransaction: (data: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>) => Promise<boolean>;
+  updateTransaction: (id: string, data: Partial<Transaction>) => Promise<boolean>;
+  deleteTransaction: (id: string) => Promise<boolean>;
 
-  addAccount: (data: Omit<Account, 'id' | 'created_at' | 'updated_at'>) => boolean;
-  updateAccount: (id: string, data: Partial<Account>) => boolean;
-  deleteAccount: (id: string) => boolean;
+  addAccount: (data: Omit<Account, 'id' | 'created_at' | 'updated_at'>) => Promise<boolean>;
+  updateAccount: (id: string, data: Partial<Account>) => Promise<boolean>;
+  deleteAccount: (id: string) => Promise<boolean>;
 
-  addCategory: (data: Omit<Category, 'id' | 'created_at' | 'updated_at'>) => boolean;
-  updateCategory: (id: string, data: Partial<Category>) => boolean;
-  deleteCategory: (id: string) => boolean;
+  addCategory: (data: Omit<Category, 'id' | 'created_at' | 'updated_at'>) => Promise<boolean>;
+  updateCategory: (id: string, data: Partial<Category>) => Promise<boolean>;
+  deleteCategory: (id: string) => Promise<boolean>;
 
-  addBudget: (data: Omit<Budget, 'id' | 'created_at' | 'updated_at'>) => boolean;
-  updateBudget: (id: string, data: Partial<Budget>) => boolean;
-  deleteBudget: (id: string) => boolean;
+  addBudget: (data: Omit<Budget, 'id' | 'created_at' | 'updated_at'>) => Promise<boolean>;
+  updateBudget: (id: string, data: Partial<Budget>) => Promise<boolean>;
+  deleteBudget: (id: string) => Promise<boolean>;
 
-  addGoal: (data: Omit<Goal, 'id' | 'created_at' | 'updated_at'>) => boolean;
-  updateGoal: (id: string, data: Partial<Goal>) => boolean;
-  contributeGoal: (id: string, amount: number, accountId?: string) => boolean;
-  deleteGoal: (id: string) => boolean;
+  addGoal: (data: Omit<Goal, 'id' | 'created_at' | 'updated_at'>) => Promise<boolean>;
+  updateGoal: (id: string, data: Partial<Goal>) => Promise<boolean>;
+  contributeGoal: (id: string, amount: number, accountId?: string) => Promise<boolean>;
+  deleteGoal: (id: string) => Promise<boolean>;
 
   // Debt & Receivable Management
   debts: Debt[];
-  addDebt: (data: Omit<Debt, 'id' | 'created_at' | 'updated_at' | 'paid_amount' | 'payments'>, syncInitialTransaction?: boolean) => boolean;
-  updateDebt: (id: string, data: Partial<Debt>) => boolean;
-  deleteDebt: (id: string) => boolean;
+  addDebt: (data: Omit<Debt, 'id' | 'created_at' | 'updated_at' | 'paid_amount' | 'payments'>, syncInitialTransaction?: boolean) => Promise<boolean>;
+  updateDebt: (id: string, data: Partial<Debt>) => Promise<boolean>;
+  deleteDebt: (id: string) => Promise<boolean>;
   recordDebtPayment: (
     debtId: string,
     amount: number,
@@ -102,7 +102,7 @@ interface DompetKuContextType {
     accountId?: string | null,
     notes?: string,
     syncWithAccount?: boolean
-  ) => boolean;
+  ) => Promise<boolean>;
 
   loginUser: (email: string, name?: string) => void;
   registerUser: (name: string, email: string) => void;
@@ -283,139 +283,42 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
     [isPrivacyMode]
   );
 
-  // Load from localStorage on client mount & sync from cloud in background
+  // Mount: Bersihkan seluruh data finansial lama di localStorage dan paksa login ulang dari awal
   useEffect(() => {
     setIsClient(true);
     try {
-      const savedUser = localStorage.getItem(`${STORAGE_KEY_PREFIX}_user`);
-      if (savedUser && savedUser !== 'null' && savedUser !== 'undefined') {
-        const parsedUser = JSON.parse(savedUser);
-        if (parsedUser && typeof parsedUser === 'object') {
-          setUser(parsedUser);
-          if (parsedUser.theme) setThemeState(parsedUser.theme);
+      // 1. Bersihkan seluruh penyimpanan lokal finansial agar murni 100% menggunakan database
+      localStorage.removeItem(`${STORAGE_KEY_PREFIX}_accounts`);
+      localStorage.removeItem(`${STORAGE_KEY_PREFIX}_categories`);
+      localStorage.removeItem(`${STORAGE_KEY_PREFIX}_transactions`);
+      localStorage.removeItem(`${STORAGE_KEY_PREFIX}_budgets`);
+      localStorage.removeItem(`${STORAGE_KEY_PREFIX}_goals`);
+      localStorage.removeItem(`${STORAGE_KEY_PREFIX}_debts`);
 
-          let parsedAccounts: Account[] = [];
-          const savedAccounts = localStorage.getItem(`${STORAGE_KEY_PREFIX}_accounts`);
-          if (savedAccounts && savedAccounts !== 'null' && savedAccounts !== 'undefined') {
-            const parsed = JSON.parse(savedAccounts);
-            if (Array.isArray(parsed)) {
-              parsedAccounts = parsed;
-              setAccounts(parsed);
-            }
-          }
-
-          let parsedCategories: Category[] = [];
-          const savedCategories = localStorage.getItem(`${STORAGE_KEY_PREFIX}_categories`);
-          if (savedCategories && savedCategories !== 'null' && savedCategories !== 'undefined') {
-            const parsed = JSON.parse(savedCategories);
-            if (Array.isArray(parsed)) {
-              parsedCategories = parsed;
-              setCategories(parsed);
-            }
-          }
-
-          let parsedTransactions: Transaction[] = [];
-          const savedTransactions = localStorage.getItem(`${STORAGE_KEY_PREFIX}_transactions`);
-          if (savedTransactions && savedTransactions !== 'null' && savedTransactions !== 'undefined') {
-            const parsed = JSON.parse(savedTransactions);
-            if (Array.isArray(parsed)) {
-              parsedTransactions = parsed;
-              setTransactions(parsed);
-            }
-          }
-
-          let parsedBudgets: Budget[] = [];
-          const savedBudgets = localStorage.getItem(`${STORAGE_KEY_PREFIX}_budgets`);
-          if (savedBudgets && savedBudgets !== 'null' && savedBudgets !== 'undefined') {
-            const parsed = JSON.parse(savedBudgets);
-            if (Array.isArray(parsed)) {
-              parsedBudgets = parsed;
-              setBudgets(parsed);
-            }
-          }
-
-          let parsedGoals: Goal[] = [];
-          const savedGoals = localStorage.getItem(`${STORAGE_KEY_PREFIX}_goals`);
-          if (savedGoals && savedGoals !== 'null' && savedGoals !== 'undefined') {
-            const parsed = JSON.parse(savedGoals);
-            if (Array.isArray(parsed)) {
-              parsedGoals = parsed;
-              setGoals(parsed);
-            }
-          }
-
-          let cleanDebts: Debt[] = [];
-          const savedDebts = localStorage.getItem(`${STORAGE_KEY_PREFIX}_debts`);
-          if (savedDebts && savedDebts !== 'null' && savedDebts !== 'undefined') {
-            const parsed = JSON.parse(savedDebts);
-            if (Array.isArray(parsed)) {
-              cleanDebts = parsed.filter(
-                (d: Debt) => !['debt-rec-1', 'debt-rec-2', 'debt-pay-1', 'debt-pay-2'].includes(d.id)
-              );
-              setDebts(cleanDebts);
-            }
-          } else {
-            setDebts([]);
-          }
-
-          // Asynchronously pull cloud data if user is logged in
-          if (parsedUser.id && parsedUser.id.includes('-')) {
-            pullUserCloudData(
-              parsedUser.id,
-              parsedUser.email,
-              parsedUser.name,
-              parsedUser.avatar_url
-            ).then((cloud) => {
-              if (cloud && cloud.success) {
-                const cloudHasTransactions = Array.isArray(cloud.transactions) && cloud.transactions.length > 0;
-                const cloudHasAccounts = Array.isArray(cloud.accounts) && cloud.accounts.length > 0;
-                const localHasTransactions = parsedTransactions.length > 0;
-                const localHasAccounts = parsedAccounts.length > 0;
-
-                // Jika di cloud transaksi masih kosong tetapi pengguna sudah punya transaksi/rekening di browser lokal,
-                // otomatis jalankan batch migration ke database cloud Supabase!
-                if (!cloudHasTransactions && (localHasTransactions || localHasAccounts)) {
-                  console.log('🔄 Mendeteksi data lokal yang belum ada di cloud. Memulai sinkronisasi otomatis ke Supabase...');
-                  batchSyncLocalData(parsedUser.id, {
-                    accounts: parsedAccounts,
-                    categories: parsedCategories,
-                    transactions: parsedTransactions,
-                    budgets: parsedBudgets,
-                    goals: parsedGoals,
-                    debts: cleanDebts,
-                  }).then((synced) => {
-                    if (synced && synced.success) {
-                      if (synced.accounts) setAccounts(synced.accounts);
-                      if (synced.categories && synced.categories.length > 0) setCategories(synced.categories);
-                      if (synced.transactions) setTransactions(synced.transactions);
-                      if (synced.budgets) setBudgets(synced.budgets);
-                      if (synced.goals) setGoals(synced.goals);
-                      if (synced.debts) setDebts(synced.debts);
-                      console.log('✅ Berhasil migrasi seluruh data lokal ke database Supabase.');
-                    }
-                  }).catch(console.warn);
-                } else {
-                  if (cloud.accounts) setAccounts(cloud.accounts);
-                  if (cloud.categories && cloud.categories.length > 0) setCategories(cloud.categories);
-                  if (cloud.transactions) setTransactions(cloud.transactions);
-                  if (cloud.budgets) setBudgets(cloud.budgets);
-                  if (cloud.goals) setGoals(cloud.goals);
-                  if (cloud.debts) setDebts(cloud.debts);
-                }
-              }
-            }).catch(console.warn);
-          }
-        }
-      } else {
-        // Unauthenticated visitor: start with clean slate
+      // 2. Paksa pengguna login ulang dari awal satu kali untuk migrasi database langsung
+      const RELOGIN_FLAG = 'dompetku_force_relogin_v2';
+      if (!localStorage.getItem(RELOGIN_FLAG)) {
+        localStorage.removeItem(`${STORAGE_KEY_PREFIX}_user`);
         setUser(null);
         setAccounts([]);
         setTransactions([]);
         setBudgets([]);
         setGoals([]);
         setDebts([]);
+        signOutSupabase().catch(() => {});
+        localStorage.setItem(RELOGIN_FLAG, 'true');
+      } else {
+        const savedUser = localStorage.getItem(`${STORAGE_KEY_PREFIX}_user`);
+        if (savedUser) {
+          try {
+            setUser(JSON.parse(savedUser));
+          } catch {
+            setUser(null);
+          }
+        }
       }
 
+      // 3. Muat preferensi UI saja (tema, ukuran font, mode privasi)
       const savedTheme = localStorage.getItem(`${STORAGE_KEY_PREFIX}_theme`) as 'light' | 'dark' | 'system';
       if (savedTheme) {
         setThemeState(savedTheme);
@@ -431,29 +334,41 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
         setIsPrivacyMode(true);
       }
     } catch (e) {
-      console.warn('Failed to parse localStorage data:', e);
+      console.warn('Gagal memproses penyimpanan sesi:', e);
     }
   }, []);
 
-  // Sync to localStorage
+  // Muat data langsung dari database Supabase PostgreSQL setiap kali pengguna login
+  useEffect(() => {
+    if (!isClient || !user?.id) return;
+
+    pullUserCloudData(user.id, user.email, user.name, user.avatar_url)
+      .then((cloud) => {
+        if (cloud && cloud.success) {
+          if (cloud.accounts) setAccounts(cloud.accounts);
+          if (cloud.categories && cloud.categories.length > 0) setCategories(cloud.categories);
+          if (cloud.transactions) setTransactions(cloud.transactions);
+          if (cloud.budgets) setBudgets(cloud.budgets);
+          if (cloud.goals) setGoals(cloud.goals);
+          if (cloud.debts) setDebts(cloud.debts);
+        }
+      })
+      .catch(console.warn);
+  }, [isClient, user?.id, user?.email, user?.name, user?.avatar_url]);
+
+  // Hanya simpan sesi autentikasi pengguna ke localStorage (TIDAK ADA DATA FINANSIAL DI LOCALSTORAGE)
   useEffect(() => {
     if (!isClient) return;
     try {
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_accounts`, JSON.stringify(accounts));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_categories`, JSON.stringify(categories));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_transactions`, JSON.stringify(transactions));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_budgets`, JSON.stringify(budgets));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_goals`, JSON.stringify(goals));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_debts`, JSON.stringify(debts));
       if (user) {
         localStorage.setItem(`${STORAGE_KEY_PREFIX}_user`, JSON.stringify(user));
       } else {
         localStorage.removeItem(`${STORAGE_KEY_PREFIX}_user`);
       }
     } catch (e) {
-      console.warn('Failed to save to localStorage:', e);
+      console.warn('Gagal memperbarui sesi di localStorage:', e);
     }
-  }, [isClient, accounts, categories, transactions, budgets, goals, debts, user]);
+  }, [isClient, user]);
 
   // Listen for Supabase Auth state changes and pull database data
   useEffect(() => {
@@ -534,9 +449,9 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
     setTransactionModalInitialDate(null);
   }, []);
 
-  // Transaction Management with Balance Verification (PRD Section 52)
+  // Transaction Management with Direct Database Persist
   const addTransaction = useCallback(
-    (data: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>): boolean => {
+    async (data: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>): Promise<boolean> => {
       const sourceAccount = accounts.find((a) => a.id === data.account_id);
       if (!sourceAccount) {
         showToast('Rekening tidak ditemukan.', 'error');
@@ -558,6 +473,11 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
+      if (!user?.id) {
+        showToast('Silakan masuk ke akun Anda terlebih dahulu.', 'error');
+        return false;
+      }
+
       const newTx: Transaction = {
         ...data,
         id: generateId(),
@@ -565,170 +485,311 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
         updated_at: new Date().toISOString(),
       };
 
-      setTransactions((prev) => [newTx, ...prev]);
-      if (user?.id) {
-        pushCloudMutation('upsertTransaction', user.id, { data: newTx }).catch(console.warn);
+      try {
+        const res = await pushCloudMutation('upsertTransaction', user.id, { data: newTx });
+        if (res?.success) {
+          const finalTx = (res.transaction as Transaction) || newTx;
+          setTransactions((prev) => [finalTx, ...prev]);
+          showToast('Transaksi berhasil ditambahkan ke database.', 'success');
+          return true;
+        } else {
+          showToast(res?.error || 'Gagal menyimpan transaksi ke database.', 'error');
+          return false;
+        }
+      } catch (err: any) {
+        showToast(err?.message || 'Gagal menghubungi database.', 'error');
+        return false;
       }
-      showToast('Transaksi berhasil ditambahkan.', 'success');
-      return true;
     },
     [accounts, transactions, user?.id, showToast]
   );
 
   const updateTransaction = useCallback(
-    (id: string, data: Partial<Transaction>): boolean => {
-      let updatedTx: Transaction | null = null;
-      setTransactions((prev) =>
-        prev.map((t) => {
-          if (t.id === id) {
-            updatedTx = { ...t, ...data, updated_at: new Date().toISOString() };
-            return updatedTx;
-          }
-          return t;
-        })
-      );
-      if (user?.id && updatedTx) {
-        pushCloudMutation('upsertTransaction', user.id, { data: updatedTx }).catch(console.warn);
+    async (id: string, data: Partial<Transaction>): Promise<boolean> => {
+      if (!user?.id) {
+        showToast('Silakan masuk ke akun Anda terlebih dahulu.', 'error');
+        return false;
       }
-      showToast('Transaksi berhasil diperbarui.', 'success');
-      return true;
+
+      const existing = transactions.find((t) => t.id === id);
+      if (!existing) {
+        showToast('Transaksi tidak ditemukan.', 'error');
+        return false;
+      }
+
+      const updatedTx: Transaction = {
+        ...existing,
+        ...data,
+        updated_at: new Date().toISOString(),
+      };
+
+      try {
+        const res = await pushCloudMutation('upsertTransaction', user.id, { data: updatedTx });
+        if (res?.success) {
+          const finalTx = (res.transaction as Transaction) || updatedTx;
+          setTransactions((prev) => prev.map((t) => (t.id === id ? finalTx : t)));
+          showToast('Transaksi berhasil diperbarui di database.', 'success');
+          return true;
+        } else {
+          showToast(res?.error || 'Gagal memperbarui transaksi di database.', 'error');
+          return false;
+        }
+      } catch (err: any) {
+        showToast(err?.message || 'Gagal menghubungi database.', 'error');
+        return false;
+      }
     },
-    [user?.id, showToast]
+    [transactions, user?.id, showToast]
   );
 
   const deleteTransaction = useCallback(
-    (id: string): boolean => {
-      setTransactions((prev) => prev.filter((t) => t.id !== id));
-      if (user?.id) {
-        pushCloudMutation('deleteTransaction', user.id, { id }).catch(console.warn);
+    async (id: string): Promise<boolean> => {
+      if (!user?.id) {
+        showToast('Silakan masuk ke akun Anda terlebih dahulu.', 'error');
+        return false;
       }
-      showToast('Transaksi berhasil dihapus.', 'success');
-      return true;
+
+      try {
+        const res = await pushCloudMutation('deleteTransaction', user.id, { id });
+        if (res?.success) {
+          setTransactions((prev) => prev.filter((t) => t.id !== id));
+          showToast('Transaksi berhasil dihapus dari database.', 'success');
+          return true;
+        } else {
+          showToast(res?.error || 'Gagal menghapus transaksi dari database.', 'error');
+          return false;
+        }
+      } catch (err: any) {
+        showToast(err?.message || 'Gagal menghubungi database.', 'error');
+        return false;
+      }
     },
     [user?.id, showToast]
   );
 
-  // Account Management
+  // Account Management with Direct Database Persist
   const addAccount = useCallback(
-    (data: Omit<Account, 'id' | 'created_at' | 'updated_at'>): boolean => {
+    async (data: Omit<Account, 'id' | 'created_at' | 'updated_at'>): Promise<boolean> => {
+      if (!user?.id) {
+        showToast('Silakan masuk ke akun Anda terlebih dahulu.', 'error');
+        return false;
+      }
+
       const newAccount: Account = {
         ...data,
         id: generateId(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
-      setAccounts((prev) => [...prev, newAccount]);
-      if (user?.id) {
-        pushCloudMutation('upsertAccount', user.id, { data: newAccount }).catch(console.warn);
+
+      try {
+        const res = await pushCloudMutation('upsertAccount', user.id, { data: newAccount });
+        if (res?.success) {
+          const finalAcc = (res.account as Account) || newAccount;
+          setAccounts((prev) => [...prev, finalAcc]);
+          showToast('Rekening berhasil ditambahkan ke database.', 'success');
+          return true;
+        } else {
+          showToast(res?.error || 'Gagal menambahkan rekening ke database.', 'error');
+          return false;
+        }
+      } catch (err: any) {
+        showToast(err?.message || 'Gagal menghubungi database.', 'error');
+        return false;
       }
-      showToast('Rekening berhasil ditambahkan.', 'success');
-      return true;
     },
     [user?.id, showToast]
   );
 
   const updateAccount = useCallback(
-    (id: string, data: Partial<Account>): boolean => {
-      let updatedAccount: Account | null = null;
-      setAccounts((prev) =>
-        prev.map((a) => {
-          if (a.id === id) {
-            updatedAccount = { ...a, ...data, updated_at: new Date().toISOString() };
-            return updatedAccount;
-          }
-          return a;
-        })
-      );
-      if (user?.id && updatedAccount) {
-        pushCloudMutation('upsertAccount', user.id, { data: updatedAccount }).catch(console.warn);
+    async (id: string, data: Partial<Account>): Promise<boolean> => {
+      if (!user?.id) {
+        showToast('Silakan masuk ke akun Anda terlebih dahulu.', 'error');
+        return false;
       }
-      showToast('Rekening berhasil diperbarui.', 'success');
-      return true;
+
+      const existing = accounts.find((a) => a.id === id);
+      if (!existing) {
+        showToast('Rekening tidak ditemukan.', 'error');
+        return false;
+      }
+
+      const updatedAccount: Account = {
+        ...existing,
+        ...data,
+        updated_at: new Date().toISOString(),
+      };
+
+      try {
+        const res = await pushCloudMutation('upsertAccount', user.id, { data: updatedAccount });
+        if (res?.success) {
+          const finalAcc = (res.account as Account) || updatedAccount;
+          setAccounts((prev) => prev.map((a) => (a.id === id ? finalAcc : a)));
+          showToast('Rekening berhasil diperbarui di database.', 'success');
+          return true;
+        } else {
+          showToast(res?.error || 'Gagal memperbarui rekening di database.', 'error');
+          return false;
+        }
+      } catch (err: any) {
+        showToast(err?.message || 'Gagal menghubungi database.', 'error');
+        return false;
+      }
     },
-    [user?.id, showToast]
+    [accounts, user?.id, showToast]
   );
 
   const deleteAccount = useCallback(
-    (id: string): boolean => {
-      setAccounts((prev) => prev.filter((a) => a.id !== id));
-      if (user?.id) {
-        pushCloudMutation('deleteAccount', user.id, { id }).catch(console.warn);
+    async (id: string): Promise<boolean> => {
+      if (!user?.id) {
+        showToast('Silakan masuk ke akun Anda terlebih dahulu.', 'error');
+        return false;
       }
-      showToast('Rekening berhasil dihapus.', 'success');
-      return true;
+
+      try {
+        const res = await pushCloudMutation('deleteAccount', user.id, { id });
+        if (res?.success) {
+          setAccounts((prev) => prev.filter((a) => a.id !== id));
+          showToast('Rekening berhasil dihapus dari database.', 'success');
+          return true;
+        } else {
+          showToast(res?.error || 'Gagal menghapus rekening dari database.', 'error');
+          return false;
+        }
+      } catch (err: any) {
+        showToast(err?.message || 'Gagal menghubungi database.', 'error');
+        return false;
+      }
     },
     [user?.id, showToast]
   );
 
-  // Category Management
+  // Category Management with Direct Database Persist
   const addCategory = useCallback(
-    (data: Omit<Category, 'id' | 'created_at' | 'updated_at'>): boolean => {
+    async (data: Omit<Category, 'id' | 'created_at' | 'updated_at'>): Promise<boolean> => {
+      if (!user?.id) {
+        showToast('Silakan masuk ke akun Anda terlebih dahulu.', 'error');
+        return false;
+      }
+
       const newCat: Category = {
         ...data,
         id: generateId(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
-      setCategories((prev) => [...prev, newCat]);
-      if (user?.id) {
-        pushCloudMutation('upsertCategory', user.id, { data: newCat }).catch(console.warn);
+
+      try {
+        const res = await pushCloudMutation('upsertCategory', user.id, { data: newCat });
+        if (res?.success) {
+          const finalCat = (res.category as Category) || newCat;
+          setCategories((prev) => [...prev, finalCat]);
+          showToast('Kategori berhasil ditambahkan ke database.', 'success');
+          return true;
+        } else {
+          showToast(res?.error || 'Gagal menambahkan kategori ke database.', 'error');
+          return false;
+        }
+      } catch (err: any) {
+        showToast(err?.message || 'Gagal menghubungi database.', 'error');
+        return false;
       }
-      showToast('Kategori berhasil ditambahkan.', 'success');
-      return true;
     },
     [user?.id, showToast]
   );
 
   const updateCategory = useCallback(
-    (id: string, data: Partial<Category>): boolean => {
-      let updatedCat: Category | null = null;
-      setCategories((prev) =>
-        prev.map((c) => {
-          if (c.id === id) {
-            updatedCat = { ...c, ...data, updated_at: new Date().toISOString() };
-            return updatedCat;
-          }
-          return c;
-        })
-      );
-      if (user?.id && updatedCat) {
-        pushCloudMutation('upsertCategory', user.id, { data: updatedCat }).catch(console.warn);
+    async (id: string, data: Partial<Category>): Promise<boolean> => {
+      if (!user?.id) {
+        showToast('Silakan masuk ke akun Anda terlebih dahulu.', 'error');
+        return false;
       }
-      showToast('Kategori berhasil diperbarui.', 'success');
-      return true;
+
+      const existing = categories.find((c) => c.id === id);
+      if (!existing) {
+        showToast('Kategori tidak ditemukan.', 'error');
+        return false;
+      }
+
+      const updatedCat: Category = {
+        ...existing,
+        ...data,
+        updated_at: new Date().toISOString(),
+      };
+
+      try {
+        const res = await pushCloudMutation('upsertCategory', user.id, { data: updatedCat });
+        if (res?.success) {
+          const finalCat = (res.category as Category) || updatedCat;
+          setCategories((prev) => prev.map((c) => (c.id === id ? finalCat : c)));
+          showToast('Kategori berhasil diperbarui di database.', 'success');
+          return true;
+        } else {
+          showToast(res?.error || 'Gagal memperbarui kategori di database.', 'error');
+          return false;
+        }
+      } catch (err: any) {
+        showToast(err?.message || 'Gagal menghubungi database.', 'error');
+        return false;
+      }
     },
-    [user?.id, showToast]
+    [categories, user?.id, showToast]
   );
 
   const deleteCategory = useCallback(
-    (id: string): boolean => {
-      setCategories((prev) => prev.filter((c) => c.id !== id));
-      if (user?.id) {
-        pushCloudMutation('deleteCategory', user.id, { id }).catch(console.warn);
+    async (id: string): Promise<boolean> => {
+      if (!user?.id) {
+        showToast('Silakan masuk ke akun Anda terlebih dahulu.', 'error');
+        return false;
       }
-      showToast('Kategori berhasil dihapus.', 'success');
-      return true;
+
+      try {
+        const res = await pushCloudMutation('deleteCategory', user.id, { id });
+        if (res?.success) {
+          setCategories((prev) => prev.filter((c) => c.id !== id));
+          showToast('Kategori berhasil dihapus dari database.', 'success');
+          return true;
+        } else {
+          showToast(res?.error || 'Gagal menghapus kategori dari database.', 'error');
+          return false;
+        }
+      } catch (err: any) {
+        showToast(err?.message || 'Gagal menghubungi database.', 'error');
+        return false;
+      }
     },
     [user?.id, showToast]
   );
 
-  // Budget Management
+  // Budget Management with Direct Database Persist
   const addBudget = useCallback(
-    (data: Omit<Budget, 'id' | 'created_at' | 'updated_at'>): boolean => {
+    async (data: Omit<Budget, 'id' | 'created_at' | 'updated_at'>): Promise<boolean> => {
+      if (!user?.id) {
+        showToast('Silakan masuk ke akun Anda terlebih dahulu.', 'error');
+        return false;
+      }
+
       const existing = budgets.find(
         (b) => b.category_id === data.category_id && b.month === data.month
       );
 
       if (existing) {
-        const updated = { ...existing, amount: data.amount, updated_at: new Date().toISOString() };
-        setBudgets((prev) =>
-          prev.map((b) => (b.id === existing.id ? updated : b))
-        );
-        if (user?.id) {
-          pushCloudMutation('upsertBudget', user.id, { data: updated }).catch(console.warn);
+        const updated: Budget = { ...existing, amount: data.amount, updated_at: new Date().toISOString() };
+        try {
+          const res = await pushCloudMutation('upsertBudget', user.id, { data: updated });
+          if (res?.success) {
+            const finalBgt = (res.budget as Budget) || updated;
+            setBudgets((prev) => prev.map((b) => (b.id === existing.id ? finalBgt : b)));
+            showToast('Anggaran berhasil diperbarui di database.', 'success');
+            return true;
+          } else {
+            showToast(res?.error || 'Gagal memperbarui anggaran di database.', 'error');
+            return false;
+          }
+        } catch (err: any) {
+          showToast(err?.message || 'Gagal menghubungi database.', 'error');
+          return false;
         }
-        showToast('Anggaran berhasil diperbarui.', 'success');
-        return true;
       }
 
       const newBudget: Budget = {
@@ -737,93 +798,176 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
-      setBudgets((prev) => [...prev, newBudget]);
-      if (user?.id) {
-        pushCloudMutation('upsertBudget', user.id, { data: newBudget }).catch(console.warn);
+
+      try {
+        const res = await pushCloudMutation('upsertBudget', user.id, { data: newBudget });
+        if (res?.success) {
+          const finalBgt = (res.budget as Budget) || newBudget;
+          setBudgets((prev) => [...prev, finalBgt]);
+          showToast('Anggaran berhasil ditambahkan ke database.', 'success');
+          return true;
+        } else {
+          showToast(res?.error || 'Gagal menambahkan anggaran ke database.', 'error');
+          return false;
+        }
+      } catch (err: any) {
+        showToast(err?.message || 'Gagal menghubungi database.', 'error');
+        return false;
       }
-      showToast('Anggaran berhasil diperbarui.', 'success');
-      return true;
     },
     [budgets, user?.id, showToast]
   );
 
   const updateBudget = useCallback(
-    (id: string, data: Partial<Budget>): boolean => {
-      let updatedBudget: Budget | null = null;
-      setBudgets((prev) =>
-        prev.map((b) => {
-          if (b.id === id) {
-            updatedBudget = { ...b, ...data, updated_at: new Date().toISOString() };
-            return updatedBudget;
-          }
-          return b;
-        })
-      );
-      if (user?.id && updatedBudget) {
-        pushCloudMutation('upsertBudget', user.id, { data: updatedBudget }).catch(console.warn);
+    async (id: string, data: Partial<Budget>): Promise<boolean> => {
+      if (!user?.id) {
+        showToast('Silakan masuk ke akun Anda terlebih dahulu.', 'error');
+        return false;
       }
-      showToast('Anggaran berhasil diperbarui.', 'success');
-      return true;
+
+      const existing = budgets.find((b) => b.id === id);
+      if (!existing) {
+        showToast('Anggaran tidak ditemukan.', 'error');
+        return false;
+      }
+
+      const updatedBudget: Budget = {
+        ...existing,
+        ...data,
+        updated_at: new Date().toISOString(),
+      };
+
+      try {
+        const res = await pushCloudMutation('upsertBudget', user.id, { data: updatedBudget });
+        if (res?.success) {
+          const finalBgt = (res.budget as Budget) || updatedBudget;
+          setBudgets((prev) => prev.map((b) => (b.id === id ? finalBgt : b)));
+          showToast('Anggaran berhasil diperbarui di database.', 'success');
+          return true;
+        } else {
+          showToast(res?.error || 'Gagal memperbarui anggaran di database.', 'error');
+          return false;
+        }
+      } catch (err: any) {
+        showToast(err?.message || 'Gagal menghubungi database.', 'error');
+        return false;
+      }
     },
-    [user?.id, showToast]
+    [budgets, user?.id, showToast]
   );
 
   const deleteBudget = useCallback(
-    (id: string): boolean => {
-      setBudgets((prev) => prev.filter((b) => b.id !== id));
-      if (user?.id) {
-        pushCloudMutation('deleteBudget', user.id, { id }).catch(console.warn);
+    async (id: string): Promise<boolean> => {
+      if (!user?.id) {
+        showToast('Silakan masuk ke akun Anda terlebih dahulu.', 'error');
+        return false;
       }
-      showToast('Anggaran berhasil dihapus.', 'success');
-      return true;
+
+      try {
+        const res = await pushCloudMutation('deleteBudget', user.id, { id });
+        if (res?.success) {
+          setBudgets((prev) => prev.filter((b) => b.id !== id));
+          showToast('Anggaran berhasil dihapus dari database.', 'success');
+          return true;
+        } else {
+          showToast(res?.error || 'Gagal menghapus anggaran dari database.', 'error');
+          return false;
+        }
+      } catch (err: any) {
+        showToast(err?.message || 'Gagal menghubungi database.', 'error');
+        return false;
+      }
     },
     [user?.id, showToast]
   );
 
-  // Goal Management
+  // Goal Management with Direct Database Persist
   const addGoal = useCallback(
-    (data: Omit<Goal, 'id' | 'created_at' | 'updated_at'>): boolean => {
+    async (data: Omit<Goal, 'id' | 'created_at' | 'updated_at'>): Promise<boolean> => {
+      if (!user?.id) {
+        showToast('Silakan masuk ke akun Anda terlebih dahulu.', 'error');
+        return false;
+      }
+
       const newGoal: Goal = {
         ...data,
         id: generateId(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
-      setGoals((prev) => [...prev, newGoal]);
-      if (user?.id) {
-        pushCloudMutation('upsertGoal', user.id, { data: newGoal }).catch(console.warn);
+
+      try {
+        const res = await pushCloudMutation('upsertGoal', user.id, { data: newGoal });
+        if (res?.success) {
+          const finalGoal = (res.goal as Goal) || newGoal;
+          setGoals((prev) => [...prev, finalGoal]);
+          showToast('Target tabungan berhasil ditambahkan ke database.', 'success');
+          return true;
+        } else {
+          showToast(res?.error || 'Gagal menambahkan target tabungan ke database.', 'error');
+          return false;
+        }
+      } catch (err: any) {
+        showToast(err?.message || 'Gagal menghubungi database.', 'error');
+        return false;
       }
-      showToast('Target tabungan berhasil ditambahkan.', 'success');
-      return true;
     },
     [user?.id, showToast]
   );
 
   const updateGoal = useCallback(
-    (id: string, data: Partial<Goal>): boolean => {
-      let updatedGoal: Goal | null = null;
-      setGoals((prev) =>
-        prev.map((g) => {
-          if (g.id === id) {
-            updatedGoal = { ...g, ...data, updated_at: new Date().toISOString() };
-            return updatedGoal;
-          }
-          return g;
-        })
-      );
-      if (user?.id && updatedGoal) {
-        pushCloudMutation('upsertGoal', user.id, { data: updatedGoal }).catch(console.warn);
+    async (id: string, data: Partial<Goal>): Promise<boolean> => {
+      if (!user?.id) {
+        showToast('Silakan masuk ke akun Anda terlebih dahulu.', 'error');
+        return false;
       }
-      showToast('Target tabungan berhasil diperbarui.', 'success');
-      return true;
+
+      const existing = goals.find((g) => g.id === id);
+      if (!existing) {
+        showToast('Target tabungan tidak ditemukan.', 'error');
+        return false;
+      }
+
+      const updatedGoal: Goal = {
+        ...existing,
+        ...data,
+        updated_at: new Date().toISOString(),
+      };
+
+      try {
+        const res = await pushCloudMutation('upsertGoal', user.id, { data: updatedGoal });
+        if (res?.success) {
+          const finalGoal = (res.goal as Goal) || updatedGoal;
+          setGoals((prev) => prev.map((g) => (g.id === id ? finalGoal : g)));
+          showToast('Target tabungan berhasil diperbarui di database.', 'success');
+          return true;
+        } else {
+          showToast(res?.error || 'Gagal memperbarui target tabungan di database.', 'error');
+          return false;
+        }
+      } catch (err: any) {
+        showToast(err?.message || 'Gagal menghubungi database.', 'error');
+        return false;
+      }
     },
-    [user?.id, showToast]
+    [goals, user?.id, showToast]
   );
 
   const contributeGoal = useCallback(
-    (id: string, amount: number, accountId?: string): boolean => {
+    async (id: string, amount: number, accountId?: string): Promise<boolean> => {
       if (amount <= 0) {
         showToast('Jumlah setor harus lebih besar dari nol.', 'error');
+        return false;
+      }
+
+      if (!user?.id) {
+        showToast('Silakan masuk ke akun Anda terlebih dahulu.', 'error');
+        return false;
+      }
+
+      const existingGoal = goals.find((g) => g.id === id);
+      if (!existingGoal) {
+        showToast('Target tabungan tidak ditemukan.', 'error');
         return false;
       }
 
@@ -845,62 +989,84 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
             amount,
             account_id: accountId,
             category_id: investCat || undefined,
-            description: `Setor Target Tabungan`,
+            description: `Setor Target Tabungan: ${existingGoal.name}`,
             date: new Date().toISOString().split('T')[0],
             notes: 'Setoran ke target tabungan',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           };
-          setTransactions((prev) => [newTx!, ...prev]);
-          if (user?.id) {
-            pushCloudMutation('upsertTransaction', user.id, { data: newTx }).catch(console.warn);
-          }
         }
       }
 
-      let updatedGoal: Goal | null = null;
-      setGoals((prev) =>
-        prev.map((g) => {
-          if (g.id === id) {
-            updatedGoal = {
-              ...g,
-              current_amount: g.current_amount + amount,
-              updated_at: new Date().toISOString(),
-            };
-            return updatedGoal;
+      const updatedGoal: Goal = {
+        ...existingGoal,
+        current_amount: existingGoal.current_amount + amount,
+        updated_at: new Date().toISOString(),
+      };
+
+      try {
+        if (newTx) {
+          const txRes = await pushCloudMutation('upsertTransaction', user.id, { data: newTx });
+          if (txRes?.success) {
+            const finalTx = (txRes.transaction as Transaction) || newTx;
+            setTransactions((prev) => [finalTx, ...prev]);
           }
-          return g;
-        })
-      );
+        }
 
-      if (user?.id && updatedGoal) {
-        pushCloudMutation('upsertGoal', user.id, { data: updatedGoal }).catch(console.warn);
+        const goalRes = await pushCloudMutation('upsertGoal', user.id, { data: updatedGoal });
+        if (goalRes?.success) {
+          const finalGoal = (goalRes.goal as Goal) || updatedGoal;
+          setGoals((prev) => prev.map((g) => (g.id === id ? finalGoal : g)));
+          showToast('Setoran tabungan berhasil dicatat di database!', 'success');
+          return true;
+        } else {
+          showToast(goalRes?.error || 'Gagal menyimpan setoran tabungan ke database.', 'error');
+          return false;
+        }
+      } catch (err: any) {
+        showToast(err?.message || 'Gagal menghubungi database.', 'error');
+        return false;
       }
-
-      showToast('Setoran tabungan berhasil dicatat!', 'success');
-      return true;
     },
-    [accounts, categories, transactions, user?.id, showToast]
+    [goals, accounts, categories, transactions, user?.id, showToast]
   );
 
   const deleteGoal = useCallback(
-    (id: string): boolean => {
-      setGoals((prev) => prev.filter((g) => g.id !== id));
-      if (user?.id) {
-        pushCloudMutation('deleteGoal', user.id, { id }).catch(console.warn);
+    async (id: string): Promise<boolean> => {
+      if (!user?.id) {
+        showToast('Silakan masuk ke akun Anda terlebih dahulu.', 'error');
+        return false;
       }
-      showToast('Target tabungan berhasil dihapus.', 'success');
-      return true;
+
+      try {
+        const res = await pushCloudMutation('deleteGoal', user.id, { id });
+        if (res?.success) {
+          setGoals((prev) => prev.filter((g) => g.id !== id));
+          showToast('Target tabungan berhasil dihapus dari database.', 'success');
+          return true;
+        } else {
+          showToast(res?.error || 'Gagal menghapus target tabungan dari database.', 'error');
+          return false;
+        }
+      } catch (err: any) {
+        showToast(err?.message || 'Gagal menghubungi database.', 'error');
+        return false;
+      }
     },
     [user?.id, showToast]
   );
 
-  // Debts & Receivables Management
+  // Debts & Receivables Management with Direct Database Persist
   const addDebt = useCallback(
-    (
+    async (
       data: Omit<Debt, 'id' | 'created_at' | 'updated_at' | 'paid_amount' | 'payments'>,
       syncInitialTransaction: boolean = false
-    ): boolean => {
+    ): Promise<boolean> => {
+      if (!user?.id) {
+        showToast('Silakan masuk ke akun Anda terlebih dahulu.', 'error');
+        return false;
+      }
+
       const now = new Date().toISOString();
       const newDebtId = generateId();
       const newDebt: Debt = {
@@ -912,90 +1078,129 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
         updated_at: now,
       };
 
-      if (syncInitialTransaction && data.account_id && data.total_amount > 0) {
-        const sourceAcc = accounts.find((a) => a.id === data.account_id);
-        if (sourceAcc) {
-          const isReceivable = data.type === 'receivable';
-          const cat = categories.find((c) =>
-            isReceivable ? c.name.toLowerCase().includes('lainnya') : c.name.toLowerCase().includes('gaji')
-          )?.id;
+      try {
+        if (syncInitialTransaction && data.account_id && data.total_amount > 0) {
+          const sourceAcc = accounts.find((a) => a.id === data.account_id);
+          if (sourceAcc) {
+            const isReceivable = data.type === 'receivable';
+            const cat = categories.find((c) =>
+              isReceivable ? c.name.toLowerCase().includes('lainnya') : c.name.toLowerCase().includes('gaji')
+            )?.id;
 
-          const newTx: Transaction = {
-            id: generateId(),
-            type: isReceivable ? 'expense' : 'income',
-            amount: data.total_amount,
-            account_id: data.account_id,
-            category_id: cat || undefined,
-            description: isReceivable
-              ? `Pinjaman Diberikan: ${data.person_name}`
-              : `Pinjaman Diterima: ${data.person_name}`,
-            date: now.split('T')[0],
-            notes: data.notes || (isReceivable ? 'Pencatatan piutang baru' : 'Pencatatan utang baru'),
-            created_at: now,
-            updated_at: now,
-          };
-          setTransactions((prev) => [newTx, ...prev]);
-          if (user?.id) {
-            pushCloudMutation('upsertTransaction', user.id, { data: newTx }).catch(console.warn);
+            const newTx: Transaction = {
+              id: generateId(),
+              type: isReceivable ? 'expense' : 'income',
+              amount: data.total_amount,
+              account_id: data.account_id,
+              category_id: cat || undefined,
+              description: isReceivable
+                ? `Pinjaman Diberikan: ${data.person_name}`
+                : `Pinjaman Diterima: ${data.person_name}`,
+              date: now.split('T')[0],
+              notes: data.notes || (isReceivable ? 'Pencatatan piutang baru' : 'Pencatatan utang baru'),
+              created_at: now,
+              updated_at: now,
+            };
+
+            const txRes = await pushCloudMutation('upsertTransaction', user.id, { data: newTx });
+            if (txRes?.success) {
+              const finalTx = (txRes.transaction as Transaction) || newTx;
+              setTransactions((prev) => [finalTx, ...prev]);
+            }
           }
         }
-      }
 
-      setDebts((prev) => [newDebt, ...prev]);
-      if (user?.id) {
-        pushCloudMutation('upsertDebt', user.id, { data: newDebt }).catch(console.warn);
+        const res = await pushCloudMutation('upsertDebt', user.id, { data: newDebt });
+        if (res?.success) {
+          const finalDebt = (res.debt as Debt) || newDebt;
+          setDebts((prev) => [finalDebt, ...prev]);
+          showToast(
+            data.type === 'receivable'
+              ? 'Catatan piutang berhasil ditambahkan ke database.'
+              : 'Catatan utang berhasil ditambahkan ke database.',
+            'success'
+          );
+          return true;
+        } else {
+          showToast(res?.error || 'Gagal menambahkan utang/piutang ke database.', 'error');
+          return false;
+        }
+      } catch (err: any) {
+        showToast(err?.message || 'Gagal menghubungi database.', 'error');
+        return false;
       }
-      showToast(
-        data.type === 'receivable' ? 'Catatan piutang berhasil ditambahkan.' : 'Catatan utang berhasil ditambahkan.',
-        'success'
-      );
-      return true;
     },
     [accounts, categories, user?.id, showToast]
   );
 
   const updateDebt = useCallback(
-    (id: string, data: Partial<Debt>): boolean => {
-      let updatedDebt: Debt | null = null;
-      setDebts((prev) =>
-        prev.map((d) => {
-          if (d.id === id) {
-            updatedDebt = { ...d, ...data, updated_at: new Date().toISOString() };
-            return updatedDebt;
-          }
-          return d;
-        })
-      );
-      if (user?.id && updatedDebt) {
-        pushCloudMutation('upsertDebt', user.id, { data: updatedDebt }).catch(console.warn);
+    async (id: string, data: Partial<Debt>): Promise<boolean> => {
+      if (!user?.id) {
+        showToast('Silakan masuk ke akun Anda terlebih dahulu.', 'error');
+        return false;
       }
-      showToast('Catatan berhasil diperbarui.', 'success');
-      return true;
+
+      const existing = debts.find((d) => d.id === id);
+      if (!existing) {
+        showToast('Catatan tidak ditemukan.', 'error');
+        return false;
+      }
+
+      const updatedDebt: Debt = { ...existing, ...data, updated_at: new Date().toISOString() };
+
+      try {
+        const res = await pushCloudMutation('upsertDebt', user.id, { data: updatedDebt });
+        if (res?.success) {
+          const finalDebt = (res.debt as Debt) || updatedDebt;
+          setDebts((prev) => prev.map((d) => (d.id === id ? finalDebt : d)));
+          showToast('Catatan berhasil diperbarui di database.', 'success');
+          return true;
+        } else {
+          showToast(res?.error || 'Gagal memperbarui catatan di database.', 'error');
+          return false;
+        }
+      } catch (err: any) {
+        showToast(err?.message || 'Gagal menghubungi database.', 'error');
+        return false;
+      }
     },
-    [user?.id, showToast]
+    [debts, user?.id, showToast]
   );
 
   const deleteDebt = useCallback(
-    (id: string): boolean => {
-      setDebts((prev) => prev.filter((d) => d.id !== id));
-      if (user?.id) {
-        pushCloudMutation('deleteDebt', user.id, { id }).catch(console.warn);
+    async (id: string): Promise<boolean> => {
+      if (!user?.id) {
+        showToast('Silakan masuk ke akun Anda terlebih dahulu.', 'error');
+        return false;
       }
-      showToast('Catatan utang/piutang berhasil dihapus.', 'success');
-      return true;
+
+      try {
+        const res = await pushCloudMutation('deleteDebt', user.id, { id });
+        if (res?.success) {
+          setDebts((prev) => prev.filter((d) => d.id !== id));
+          showToast('Catatan berhasil dihapus dari database.', 'success');
+          return true;
+        } else {
+          showToast(res?.error || 'Gagal menghapus catatan dari database.', 'error');
+          return false;
+        }
+      } catch (err: any) {
+        showToast(err?.message || 'Gagal menghubungi database.', 'error');
+        return false;
+      }
     },
     [user?.id, showToast]
   );
 
   const recordDebtPayment = useCallback(
-    (
+    async (
       debtId: string,
       amount: number,
       paymentDate: string,
       accountId?: string | null,
       notes?: string,
       syncWithAccount: boolean = true
-    ): boolean => {
+    ): Promise<boolean> => {
       const targetDebt = debts.find((d) => d.id === debtId);
       if (!targetDebt) {
         showToast('Catatan utang/piutang tidak ditemukan.', 'error');
@@ -1013,6 +1218,11 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
 
+      if (!user?.id) {
+        showToast('Silakan masuk ke akun Anda terlebih dahulu.', 'error');
+        return false;
+      }
+
       const now = new Date().toISOString();
       const newPayment: DebtPayment = {
         id: generateId(),
@@ -1024,63 +1234,74 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
         created_at: now,
       };
 
-      // Sinkronisasi otomatis ke mutasi rekening jika dipilih
-      if (syncWithAccount && accountId) {
-        const acc = accounts.find((a) => a.id === accountId);
-        if (acc) {
-          const isReceivable = targetDebt.type === 'receivable';
-          const cat = categories.find((c) =>
-            isReceivable ? c.name.toLowerCase().includes('investasi') : c.name.toLowerCase().includes('tagihan')
-          )?.id;
+      try {
+        if (syncWithAccount && accountId) {
+          const acc = accounts.find((a) => a.id === accountId);
+          if (acc) {
+            const isReceivable = targetDebt.type === 'receivable';
+            const cat = categories.find((c) =>
+              isReceivable ? c.name.toLowerCase().includes('investasi') : c.name.toLowerCase().includes('tagihan')
+            )?.id;
 
-          const newTx: Transaction = {
-            id: generateId(),
-            type: isReceivable ? 'income' : 'expense',
-            amount,
-            account_id: accountId,
-            category_id: cat || undefined,
-            description: isReceivable
-              ? `Pelunasan Piutang: ${targetDebt.person_name}`
-              : `Pembayaran Utang: ${targetDebt.person_name}`,
-            date: paymentDate,
-            notes: notes || `Cicilan/Pelunasan ${isReceivable ? 'piutang' : 'utang'}`,
-            created_at: now,
-            updated_at: now,
-          };
-          setTransactions((prev) => [newTx, ...prev]);
-          if (user?.id) {
-            pushCloudMutation('upsertTransaction', user.id, { data: newTx }).catch(console.warn);
-          }
-        }
-      }
-
-      setDebts((prev) =>
-        prev.map((d) => {
-          if (d.id === debtId) {
-            const newPaid = d.paid_amount + amount;
-            return {
-              ...d,
-              paid_amount: newPaid,
-              payments: [newPayment, ...(d.payments || [])],
+            const newTx: Transaction = {
+              id: generateId(),
+              type: isReceivable ? 'income' : 'expense',
+              amount,
+              account_id: accountId,
+              category_id: cat || undefined,
+              description: isReceivable
+                ? `Pelunasan Piutang: ${targetDebt.person_name}`
+                : `Pembayaran Utang: ${targetDebt.person_name}`,
+              date: paymentDate,
+              notes: notes || `Cicilan/Pelunasan ${isReceivable ? 'piutang' : 'utang'}`,
+              created_at: now,
               updated_at: now,
             };
+
+            const txRes = await pushCloudMutation('upsertTransaction', user.id, { data: newTx });
+            if (txRes?.success) {
+              const finalTx = (txRes.transaction as Transaction) || newTx;
+              setTransactions((prev) => [finalTx, ...prev]);
+            }
           }
-          return d;
-        })
-      );
+        }
 
-      if (user?.id) {
-        pushCloudMutation('recordDebtPayment', user.id, { debtId, payment: newPayment }).catch(console.warn);
+        const res = await pushCloudMutation('recordDebtPayment', user.id, { debtId, payment: newPayment });
+        if (res?.success) {
+          const finalDebt = res.debt as Debt;
+          if (finalDebt) {
+            setDebts((prev) => prev.map((d) => (d.id === debtId ? finalDebt : d)));
+          } else {
+            setDebts((prev) =>
+              prev.map((d) => {
+                if (d.id === debtId) {
+                  return {
+                    ...d,
+                    paid_amount: d.paid_amount + amount,
+                    payments: [newPayment, ...(d.payments || [])],
+                    updated_at: now,
+                  };
+                }
+                return d;
+              })
+            );
+          }
+          const isFullyPaid = targetDebt.paid_amount + amount >= targetDebt.total_amount;
+          showToast(
+            isFullyPaid
+              ? `Selamat! Tagihan ${targetDebt.person_name} telah lunas di database.`
+              : `Pembayaran ${formatRupiah(amount)} berhasil dicatat di database.`,
+            'success'
+          );
+          return true;
+        } else {
+          showToast(res?.error || 'Gagal mencatat pembayaran di database.', 'error');
+          return false;
+        }
+      } catch (err: any) {
+        showToast(err?.message || 'Gagal menghubungi database.', 'error');
+        return false;
       }
-
-      const isFullyPaid = targetDebt.paid_amount + amount >= targetDebt.total_amount;
-      showToast(
-        isFullyPaid
-          ? `Selamat! Tagihan ${targetDebt.person_name} telah lunas.`
-          : `Pembayaran ${formatRupiah(amount)} berhasil dicatat.`,
-        'success'
-      );
-      return true;
     },
     [debts, accounts, categories, user?.id, showToast]
   );
@@ -1102,22 +1323,11 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
 
   const resetAllFinancialData = useCallback(() => {
     setAccounts([]);
-    setCategories(INITIAL_CATEGORIES);
     setTransactions([]);
     setBudgets([]);
     setGoals([]);
     setDebts([]);
-    try {
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_accounts`, JSON.stringify([]));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_categories`, JSON.stringify(INITIAL_CATEGORIES));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_transactions`, JSON.stringify([]));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_budgets`, JSON.stringify([]));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_goals`, JSON.stringify([]));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_debts`, JSON.stringify([]));
-    } catch (e) {
-      console.warn('Failed to reset financial data in localStorage:', e);
-    }
-    showToast('Seluruh mutasi transaksi, rekening, dan utang-piutang telah dibersihkan.', 'info');
+    showToast('Seluruh mutasi transaksi, rekening, dan utang-piutang telah dibersihkan di memori.', 'info');
   }, [showToast]);
 
   const resetToDemoData = resetAllFinancialData;
@@ -1143,11 +1353,6 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
       setDebts([]);
       try {
         localStorage.setItem(`${STORAGE_KEY_PREFIX}_user`, JSON.stringify(cleanUser));
-        localStorage.setItem(`${STORAGE_KEY_PREFIX}_accounts`, JSON.stringify([]));
-        localStorage.setItem(`${STORAGE_KEY_PREFIX}_transactions`, JSON.stringify([]));
-        localStorage.setItem(`${STORAGE_KEY_PREFIX}_budgets`, JSON.stringify([]));
-        localStorage.setItem(`${STORAGE_KEY_PREFIX}_goals`, JSON.stringify([]));
-        localStorage.setItem(`${STORAGE_KEY_PREFIX}_debts`, JSON.stringify([]));
       } catch (e) {
         console.warn('Failed to save clean session to localStorage:', e);
       }
@@ -1175,11 +1380,6 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
     setDebts([]);
     try {
       localStorage.setItem(`${STORAGE_KEY_PREFIX}_user`, JSON.stringify(cleanUser));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_accounts`, JSON.stringify([]));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_transactions`, JSON.stringify([]));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_budgets`, JSON.stringify([]));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_goals`, JSON.stringify([]));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_debts`, JSON.stringify([]));
     } catch (e) {
       console.warn('Failed to save register session to localStorage:', e);
     }
@@ -1211,12 +1411,6 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
 
     try {
       localStorage.setItem(`${STORAGE_KEY_PREFIX}_user`, JSON.stringify(profile));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_accounts`, JSON.stringify(accs));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_categories`, JSON.stringify(cats));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_transactions`, JSON.stringify(txs));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_budgets`, JSON.stringify(bgts));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_goals`, JSON.stringify(gls));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}_debts`, JSON.stringify(dbts));
     } catch (e) {
       console.warn('Failed to save session to localStorage:', e);
     }
@@ -1241,6 +1435,7 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem(`${STORAGE_KEY_PREFIX}_goals`);
       localStorage.removeItem(`${STORAGE_KEY_PREFIX}_debts`);
       localStorage.removeItem(`${STORAGE_KEY_PREFIX}_accounts`);
+      localStorage.removeItem(`${STORAGE_KEY_PREFIX}_categories`);
     } catch (e) {
       console.warn('Failed to clear user from localStorage:', e);
     }

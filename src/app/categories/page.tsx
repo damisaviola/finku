@@ -58,6 +58,7 @@ export default function CategoriesPage() {
   const [type, setType] = useState<CategoryType>('expense');
   const [color, setColor] = useState('#f97316');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSaving, setIsSaving] = useState(false);
 
   // Hitung jumlah transaksi per kategori untuk informasi frekuensi pemakaian
   const usageCountMap = useMemo(() => {
@@ -72,6 +73,7 @@ export default function CategoriesPage() {
 
   const handleOpenModal = (cat?: Category) => {
     setErrors({});
+    setIsSaving(false);
     if (cat) {
       setEditingCategory(cat);
       setName(cat.name);
@@ -86,29 +88,36 @@ export default function CategoriesPage() {
     setIsModalOpen(true);
   };
 
-  const handleSaveCategory = (e: React.FormEvent) => {
+  const handleSaveCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
       setErrors({ name: 'Nama kategori wajib diisi.' });
       return;
     }
 
-    if (editingCategory) {
-      updateCategory(editingCategory.id, {
-        name: name.trim(),
-        type,
-        color,
-      });
-    } else {
-      addCategory({
-        name: name.trim(),
-        type,
-        color,
-        is_active: true,
-      });
-    }
+    setIsSaving(true);
+    try {
+      if (editingCategory) {
+        const success = await updateCategory(editingCategory.id, {
+          name: name.trim(),
+          type,
+          color,
+        });
+        if (!success) return;
+      } else {
+        const success = await addCategory({
+          name: name.trim(),
+          type,
+          color,
+          is_active: true,
+        });
+        if (!success) return;
+      }
 
-    setIsModalOpen(false);
+      setIsModalOpen(false);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const expenseCount = categories.filter((c) => c.type === 'expense').length;
@@ -557,7 +566,7 @@ export default function CategoriesPage() {
             <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)}>
               Batal
             </Button>
-            <Button type="submit" variant="primary">
+            <Button type="submit" variant="primary" disabled={isSaving} isLoading={isSaving}>
               Simpan Kategori
             </Button>
           </DialogFooter>
@@ -569,8 +578,8 @@ export default function CategoriesPage() {
         <ConfirmDialog
           isOpen={!!categoryToDelete}
           onClose={() => setCategoryToDelete(null)}
-          onConfirm={() => {
-            deleteCategory(categoryToDelete.id);
+          onConfirm={async () => {
+            await deleteCategory(categoryToDelete.id);
             setCategoryToDelete(null);
           }}
           title="Hapus Kategori?"

@@ -48,9 +48,11 @@ export default function AccountsPage() {
   const [currency, setCurrency] = useState('IDR');
   const [color, setColor] = useState('#3b82f6');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleOpenModal = (acc?: Account) => {
     setErrors({});
+    setIsSaving(false);
     if (acc) {
       setEditingAccount(acc);
       setName(acc.name);
@@ -71,7 +73,7 @@ export default function AccountsPage() {
     setIsModalOpen(true);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: Record<string, string> = {};
 
@@ -91,28 +93,35 @@ export default function AccountsPage() {
 
     const resolvedAccountNumber = type === 'Bank' && accountNumber.trim() ? accountNumber.trim() : undefined;
 
-    if (editingAccount) {
-      updateAccount(editingAccount.id, {
-        name: name.trim(),
-        type,
-        account_number: resolvedAccountNumber,
-        initial_balance: initialBalance,
-        currency,
-        color,
-      });
-    } else {
-      addAccount({
-        name: name.trim(),
-        type,
-        account_number: resolvedAccountNumber,
-        initial_balance: initialBalance,
-        currency,
-        color,
-        is_active: true,
-      });
-    }
+    setIsSaving(true);
+    try {
+      if (editingAccount) {
+        const success = await updateAccount(editingAccount.id, {
+          name: name.trim(),
+          type,
+          account_number: resolvedAccountNumber,
+          initial_balance: initialBalance,
+          currency,
+          color,
+        });
+        if (!success) return;
+      } else {
+        const success = await addAccount({
+          name: name.trim(),
+          type,
+          account_number: resolvedAccountNumber,
+          initial_balance: initialBalance,
+          currency,
+          color,
+          is_active: true,
+        });
+        if (!success) return;
+      }
 
-    setIsModalOpen(false);
+      setIsModalOpen(false);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -368,7 +377,7 @@ export default function AccountsPage() {
             <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)}>
               Batal
             </Button>
-            <Button type="submit" variant="primary">
+            <Button type="submit" variant="primary" disabled={isSaving} isLoading={isSaving}>
               Simpan Rekening
             </Button>
           </DialogFooter>
@@ -380,8 +389,8 @@ export default function AccountsPage() {
         <ConfirmDialog
           isOpen={!!accountToDelete}
           onClose={() => setAccountToDelete(null)}
-          onConfirm={() => {
-            deleteAccount(accountToDelete.id);
+          onConfirm={async () => {
+            await deleteAccount(accountToDelete.id);
             setAccountToDelete(null);
           }}
           title="Hapus Rekening?"

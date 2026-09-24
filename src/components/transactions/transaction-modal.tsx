@@ -45,6 +45,7 @@ export function TransactionModal() {
   const [date, setDate] = useState('');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (isTransactionModalOpen) {
@@ -96,7 +97,7 @@ export function TransactionModal() {
     numericAmount > 0 &&
     numericAmount > currentSourceBalance;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: Record<string, string> = {};
 
@@ -137,33 +138,39 @@ export function TransactionModal() {
       return;
     }
 
-    if (transactionToEdit) {
-      updateTransaction(transactionToEdit.id, {
-        type,
-        amount: numericAmount,
-        account_id: accountId,
-        destination_account_id: type === 'transfer' ? destAccountId : null,
-        category_id: type === 'transfer' ? null : categoryId,
-        description: description.trim(),
-        date,
-        notes: notes.trim(),
-      });
-    } else {
-      const success = addTransaction({
-        type,
-        amount: numericAmount,
-        account_id: accountId,
-        destination_account_id: type === 'transfer' ? destAccountId : null,
-        category_id: type === 'transfer' ? null : categoryId,
-        description: description.trim(),
-        date,
-        notes: notes.trim(),
-      });
+    setIsSubmitting(true);
+    try {
+      if (transactionToEdit) {
+        const success = await updateTransaction(transactionToEdit.id, {
+          type,
+          amount: numericAmount,
+          account_id: accountId,
+          destination_account_id: type === 'transfer' ? destAccountId : null,
+          category_id: type === 'transfer' ? null : categoryId,
+          description: description.trim(),
+          date,
+          notes: notes.trim(),
+        });
+        if (!success) return;
+      } else {
+        const success = await addTransaction({
+          type,
+          amount: numericAmount,
+          account_id: accountId,
+          destination_account_id: type === 'transfer' ? destAccountId : null,
+          category_id: type === 'transfer' ? null : categoryId,
+          description: description.trim(),
+          date,
+          notes: notes.trim(),
+        });
 
-      if (!success) return;
+        if (!success) return;
+      }
+
+      closeTransactionModal();
+    } finally {
+      setIsSubmitting(false);
     }
-
-    closeTransactionModal();
   };
 
   const filteredCategories = categories.filter(
@@ -387,7 +394,8 @@ export function TransactionModal() {
           <Button
             type="submit"
             variant="primary"
-            disabled={isInsufficient}
+            disabled={isInsufficient || isSubmitting}
+            isLoading={isSubmitting}
           >
             {transactionToEdit
               ? 'Simpan Perubahan'

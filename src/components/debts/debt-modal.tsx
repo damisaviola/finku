@@ -36,8 +36,10 @@ export function DebtModal({
   const [notes, setNotes] = useState('');
   const [syncInitialTx, setSyncInitialTx] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
+    setIsSaving(false);
     if (debtToEdit) {
       setType(debtToEdit.type);
       setPersonName(debtToEdit.person_name);
@@ -60,7 +62,7 @@ export function DebtModal({
     setErrors({});
   }, [debtToEdit, defaultType, accounts, isOpen]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: Record<string, string> = {};
 
@@ -77,19 +79,10 @@ export function DebtModal({
       return;
     }
 
-    if (debtToEdit) {
-      updateDebt(debtToEdit.id, {
-        type,
-        person_name: personName.trim(),
-        phone_number: phoneNumber.trim() || undefined,
-        total_amount: totalAmount,
-        due_date: dueDate || undefined,
-        account_id: accountId || undefined,
-        notes: notes.trim() || undefined,
-      });
-    } else {
-      addDebt(
-        {
+    setIsSaving(true);
+    try {
+      if (debtToEdit) {
+        const success = await updateDebt(debtToEdit.id, {
           type,
           person_name: personName.trim(),
           phone_number: phoneNumber.trim() || undefined,
@@ -97,12 +90,28 @@ export function DebtModal({
           due_date: dueDate || undefined,
           account_id: accountId || undefined,
           notes: notes.trim() || undefined,
-        },
-        syncInitialTx
-      );
-    }
+        });
+        if (!success) return;
+      } else {
+        const success = await addDebt(
+          {
+            type,
+            person_name: personName.trim(),
+            phone_number: phoneNumber.trim() || undefined,
+            total_amount: totalAmount,
+            due_date: dueDate || undefined,
+            account_id: accountId || undefined,
+            notes: notes.trim() || undefined,
+          },
+          syncInitialTx
+        );
+        if (!success) return;
+      }
 
-    onClose();
+      onClose();
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const isReceivable = type === 'receivable';
@@ -267,7 +276,7 @@ export function DebtModal({
           <Button type="button" variant="secondary" onClick={onClose}>
             Batal
           </Button>
-          <Button type="submit" variant="primary">
+          <Button type="submit" variant="primary" disabled={isSaving} isLoading={isSaving}>
             {debtToEdit ? 'Simpan Perubahan' : 'Simpan Catatan'}
           </Button>
         </DialogFooter>

@@ -52,17 +52,28 @@ export async function pullUserCloudData(
   }
 }
 
+export interface MutationResponse {
+  success: boolean;
+  id?: string;
+  error?: string;
+  account?: Account;
+  category?: Category;
+  transaction?: Transaction;
+  budget?: Budget;
+  goal?: Goal;
+  debt?: Debt;
+}
+
 /**
- * Mengirim perubahan (mutasi) data ke database cloud Supabase secara asynchronous
+ * Mengirim perubahan (mutasi) data langsung ke database PostgreSQL Supabase
  */
 export async function pushCloudMutation(
   action: string,
   userId: string,
   payload: Record<string, any>
-): Promise<boolean> {
-  // Hanya kirim jika userId valid (pengguna login)
+): Promise<MutationResponse> {
   if (!userId || !userId.includes('-')) {
-    return false;
+    return { success: false, error: 'Sesi pengguna tidak valid. Silakan login kembali.' };
   }
 
   try {
@@ -78,15 +89,18 @@ export async function pushCloudMutation(
       }),
     });
 
-    if (!res.ok) {
-      console.warn(`Mutasi cloud gagal (${action}):`, await res.text());
-      return false;
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      const errMsg = data.error || `Mutasi cloud gagal (${action})`;
+      console.warn(errMsg);
+      return { success: false, error: errMsg };
     }
 
-    return true;
+    return { success: true, ...data };
   } catch (err) {
-    console.warn(`Pengecualian saat mutasi cloud (${action}):`, err);
-    return false;
+    const errMsg = err instanceof Error ? err.message : `Pengecualian saat mutasi (${action})`;
+    console.warn(errMsg);
+    return { success: false, error: errMsg };
   }
 }
 

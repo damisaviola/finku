@@ -26,11 +26,13 @@ export function DebtPaymentModal({ isOpen, onClose, debt }: DebtPaymentModalProp
   const [syncWithAccount, setSyncWithAccount] = useState<boolean>(true);
   const [notes, setNotes] = useState<string>('');
   const [error, setError] = useState<string>('');
+  const [isSaving, setIsSaving] = useState<boolean>(false);
 
   const remaining = debt ? Math.max(0, debt.total_amount - debt.paid_amount) : 0;
   const isReceivable = debt?.type === 'receivable';
 
   useEffect(() => {
+    setIsSaving(false);
     if (debt) {
       const rem = Math.max(0, debt.total_amount - debt.paid_amount);
       setAmount(rem); // Default to full remaining balance
@@ -42,7 +44,7 @@ export function DebtPaymentModal({ isOpen, onClose, debt }: DebtPaymentModalProp
     }
   }, [debt, accounts, isOpen]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!debt) return;
 
@@ -56,17 +58,22 @@ export function DebtPaymentModal({ isOpen, onClose, debt }: DebtPaymentModalProp
       return;
     }
 
-    const success = recordDebtPayment(
-      debt.id,
-      amount,
-      paymentDate || new Date().toISOString().split('T')[0],
-      accountId || null,
-      notes.trim() || undefined,
-      syncWithAccount
-    );
+    setIsSaving(true);
+    try {
+      const success = await recordDebtPayment(
+        debt.id,
+        amount,
+        paymentDate || new Date().toISOString().split('T')[0],
+        accountId || null,
+        notes.trim() || undefined,
+        syncWithAccount
+      );
 
-    if (success) {
-      onClose();
+      if (success) {
+        onClose();
+      }
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -199,7 +206,7 @@ export function DebtPaymentModal({ isOpen, onClose, debt }: DebtPaymentModalProp
           <Button type="button" variant="secondary" onClick={onClose}>
             Batal
           </Button>
-          <Button type="submit" variant="primary">
+          <Button type="submit" variant="primary" disabled={isSaving} isLoading={isSaving}>
             <CheckCircle2 className="h-4 w-4 mr-1.5" />
             <span>Simpan Pembayaran</span>
           </Button>
