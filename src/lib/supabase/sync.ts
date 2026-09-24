@@ -89,3 +89,48 @@ export async function pushCloudMutation(
     return false;
   }
 }
+
+/**
+ * Mengirim seluruh data lokal (akun, transaksi, anggaran, target, utang) ke database Supabase
+ */
+export async function batchSyncLocalData(
+  userId: string,
+  localData: {
+    accounts?: Account[];
+    categories?: Category[];
+    transactions?: Transaction[];
+    budgets?: Budget[];
+    goals?: Goal[];
+    debts?: Debt[];
+  }
+): Promise<CloudDataResponse | null> {
+  if (!userId || !userId.includes('-')) {
+    return null;
+  }
+
+  try {
+    const res = await fetch('/api/sync', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        action: 'batchSync',
+        userId,
+        data: localData,
+      }),
+    });
+
+    if (!res.ok) {
+      console.warn('Batch sync gagal:', await res.text());
+      return null;
+    }
+
+    const data: CloudDataResponse = await res.json();
+    return data;
+  } catch (err) {
+    console.warn('Pengecualian saat batch sync:', err);
+    return null;
+  }
+}
+

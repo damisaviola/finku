@@ -125,6 +125,40 @@ export async function POST(request: Request) {
       orderBy: { created_at: 'asc' },
     });
 
+    // 6. Inisialisasi rekening dasar untuk pengguna baru (Kas Tunai & Rekening Bank)
+    const defaultAccounts = [
+      {
+        user_id: newUser.id,
+        name: 'Kas Tunai',
+        type: 'Uang Tunai',
+        initial_balance: 0,
+        currency: 'IDR',
+        color: '#10b981',
+        icon: 'Banknote',
+        is_active: true,
+      },
+      {
+        user_id: newUser.id,
+        name: 'Rekening Bank',
+        type: 'Bank',
+        initial_balance: 0,
+        currency: 'IDR',
+        color: '#3b82f6',
+        icon: 'Landmark',
+        is_active: true,
+      },
+    ];
+
+    await prisma.account.createMany({
+      data: defaultAccounts,
+      skipDuplicates: true,
+    });
+
+    const userAccounts = await prisma.account.findMany({
+      where: { user_id: newUser.id },
+      orderBy: { created_at: 'asc' },
+    });
+
     return NextResponse.json({
       success: true,
       message: 'Pendaftaran berhasil! Akun Anda telah disimpan di database Supabase.',
@@ -135,7 +169,19 @@ export async function POST(request: Request) {
         avatar_url: newUser.avatar_url,
         provider: 'email',
       },
-      accounts: [],
+      accounts: userAccounts.map((acc) => ({
+        id: acc.id,
+        name: acc.name,
+        type: acc.type,
+        account_number: acc.account_number || undefined,
+        initial_balance: Number(acc.initial_balance),
+        currency: acc.currency,
+        color: acc.color || '#3b82f6',
+        icon: acc.icon || 'Wallet',
+        is_active: acc.is_active,
+        created_at: acc.created_at.toISOString(),
+        updated_at: acc.updated_at.toISOString(),
+      })),
       categories: userCategories.map((cat) => ({
         id: cat.id,
         name: cat.name,

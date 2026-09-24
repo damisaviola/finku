@@ -129,6 +129,40 @@ export async function GET(request: Request) {
       });
     }
 
+    let userAccounts = accounts;
+    if (userAccounts.length === 0) {
+      const defaultAccounts = [
+        {
+          user_id: userRecord.id,
+          name: 'Kas Tunai',
+          type: 'Uang Tunai',
+          initial_balance: 0,
+          currency: 'IDR',
+          color: '#10b981',
+          icon: 'Banknote',
+          is_active: true,
+        },
+        {
+          user_id: userRecord.id,
+          name: 'Rekening Bank',
+          type: 'Bank',
+          initial_balance: 0,
+          currency: 'IDR',
+          color: '#3b82f6',
+          icon: 'Landmark',
+          is_active: true,
+        },
+      ];
+      await prisma.account.createMany({
+        data: defaultAccounts,
+        skipDuplicates: true,
+      });
+      userAccounts = await prisma.account.findMany({
+        where: { user_id: userRecord.id },
+        orderBy: { created_at: 'asc' },
+      });
+    }
+
     return NextResponse.json({
       success: true,
       user: {
@@ -137,7 +171,7 @@ export async function GET(request: Request) {
         email: userRecord.email,
         avatar_url: userRecord.avatar_url,
       },
-      accounts: accounts.map((acc) => ({
+      accounts: userAccounts.map((acc) => ({
         id: acc.id,
         name: acc.name,
         type: acc.type,
@@ -240,6 +274,404 @@ export async function POST(request: Request) {
     }
 
     switch (action) {
+      // 0. BATCH SYNC: Migrasi seluruh data lokal ke PostgreSQL Supabase
+      case 'batchSync': {
+        const payload = data || {};
+        const localAccounts = Array.isArray(payload.accounts) ? payload.accounts : [];
+        const localCategories = Array.isArray(payload.categories) ? payload.categories : [];
+        const localTransactions = Array.isArray(payload.transactions) ? payload.transactions : [];
+        const localBudgets = Array.isArray(payload.budgets) ? payload.budgets : [];
+        const localGoals = Array.isArray(payload.goals) ? payload.goals : [];
+        const localDebts = Array.isArray(payload.debts) ? payload.debts : [];
+
+        // 1. Kategorisasi: Ambil atau buat kategori di database
+        let dbCategories = await prisma.category.findMany({
+          where: { user_id: userId },
+        });
+
+        if (dbCategories.length === 0) {
+          const defaultCategories = [
+            { user_id: userId, name: 'Makanan', type: 'expense', icon: 'Utensils', color: '#f97316' },
+            { user_id: userId, name: 'Transportasi', type: 'expense', icon: 'Car', color: '#0284c7' },
+            { user_id: userId, name: 'Belanja', type: 'expense', icon: 'ShoppingBag', color: '#ec4899' },
+            { user_id: userId, name: 'Tagihan', type: 'expense', icon: 'Receipt', color: '#8b5cf6' },
+            { user_id: userId, name: 'Hiburan', type: 'expense', icon: 'Film', color: '#f43f5e' },
+            { user_id: userId, name: 'Kesehatan', type: 'expense', icon: 'HeartPulse', color: '#10b981' },
+            { user_id: userId, name: 'Pendidikan', type: 'expense', icon: 'GraduationCap', color: '#6366f1' },
+            { user_id: userId, name: 'Perjalanan', type: 'expense', icon: 'Plane', color: '#eab308' },
+            { user_id: userId, name: 'Langganan', type: 'expense', icon: 'CreditCard', color: '#64748b' },
+            { user_id: userId, name: 'Lainnya', type: 'expense', icon: 'MoreHorizontal', color: '#94a3b8' },
+            { user_id: userId, name: 'Gaji', type: 'income', icon: 'Briefcase', color: '#10b981' },
+            { user_id: userId, name: 'Freelance', type: 'income', icon: 'Laptop', color: '#3b82f6' },
+            { user_id: userId, name: 'Bisnis', type: 'income', icon: 'Store', color: '#8b5cf6' },
+            { user_id: userId, name: 'Bonus', type: 'income', icon: 'Award', color: '#f59e0b' },
+            { user_id: userId, name: 'Hadiah', type: 'income', icon: 'Gift', color: '#ec4899' },
+            { user_id: userId, name: 'Investasi', type: 'income', icon: 'TrendingUp', color: '#059669' },
+          ];
+          await prisma.category.createMany({
+            data: defaultCategories,
+            skipDuplicates: true,
+          });
+          dbCategories = await prisma.category.findMany({
+            where: { user_id: userId },
+          });
+        }
+
+        const categoryMap = new Map<string, string>();
+        for (const cat of dbCategories) {
+          categoryMap.set(cat.id, cat.id);
+          categoryMap.set(cat.name.toLowerCase().trim(), cat.id);
+        }
+
+        for (const localCat of localCategories) {
+          const normName = localCat.name?.toLowerCase().trim();
+          if (normName && !categoryMap.has(normName)) {
+            const newCatId = toValidUuid(localCat.id);
+            const created = await prisma.category.upsert({
+              where: { id: newCatId },
+              create: {
+                id: newCatId,
+                user_id: userId,
+                name: localCat.name,
+                type: localCat.type || 'expense',
+                icon: localCat.icon || 'Tag',
+                color: localCat.color || '#3b82f6',
+              },
+              update: {},
+            });
+            categoryMap.set(localCat.id, created.id);
+            categoryMap.set(normName, created.id);
+          }
+        }
+
+        // 2. Rekening: Ambil atau sinkronkan rekening
+        let dbAccounts = await prisma.account.findMany({
+          where: { user_id: userId },
+        });
+
+        const accountMap = new Map<string, string>();
+        for (const acc of dbAccounts) {
+          accountMap.set(acc.id, acc.id);
+          accountMap.set(acc.name.toLowerCase().trim(), acc.id);
+        }
+
+        for (const localAcc of localAccounts) {
+          if (!localAcc.name) continue;
+          let targetAccId = safeUuid(localAcc.id);
+          const existingByName = accountMap.get(localAcc.name.toLowerCase().trim());
+
+          if (existingByName) {
+            targetAccId = existingByName;
+          } else if (!targetAccId) {
+            targetAccId = crypto.randomUUID();
+          }
+
+          const upserted = await prisma.account.upsert({
+            where: { id: targetAccId },
+            create: {
+              id: targetAccId,
+              user_id: userId,
+              name: localAcc.name,
+              type: localAcc.type || 'Bank',
+              account_number: localAcc.account_number || null,
+              initial_balance: localAcc.initial_balance || 0,
+              currency: localAcc.currency || 'IDR',
+              color: localAcc.color || '#3b82f6',
+              icon: localAcc.icon || 'Wallet',
+              is_active: localAcc.is_active ?? true,
+            },
+            update: {
+              name: localAcc.name,
+              type: localAcc.type || 'Bank',
+              account_number: localAcc.account_number || null,
+              initial_balance: localAcc.initial_balance ?? undefined,
+            },
+          });
+
+          accountMap.set(localAcc.id, upserted.id);
+          accountMap.set(localAcc.name.toLowerCase().trim(), upserted.id);
+        }
+
+        // Pastikan minimal ada rekening default jika masih 0
+        dbAccounts = await prisma.account.findMany({
+          where: { user_id: userId },
+        });
+
+        if (dbAccounts.length === 0) {
+          const defaultAccounts = [
+            {
+              user_id: userId,
+              name: 'Kas Tunai',
+              type: 'Uang Tunai',
+              initial_balance: 0,
+              currency: 'IDR',
+              color: '#10b981',
+              icon: 'Banknote',
+              is_active: true,
+            },
+            {
+              user_id: userId,
+              name: 'Rekening Bank',
+              type: 'Bank',
+              initial_balance: 0,
+              currency: 'IDR',
+              color: '#3b82f6',
+              icon: 'Landmark',
+              is_active: true,
+            },
+          ];
+          await prisma.account.createMany({
+            data: defaultAccounts,
+            skipDuplicates: true,
+          });
+          dbAccounts = await prisma.account.findMany({
+            where: { user_id: userId },
+          });
+          for (const acc of dbAccounts) {
+            accountMap.set(acc.id, acc.id);
+            accountMap.set(acc.name.toLowerCase().trim(), acc.id);
+          }
+        }
+
+        const fallbackAccountId = dbAccounts[0].id;
+
+        // 3. Transaksi: Simpan seluruh mutasi transaksi lokal
+        for (const tx of localTransactions) {
+          const txId = toValidUuid(tx.id);
+          const rawSourceId = tx.account_id;
+          const mappedSourceId = (rawSourceId && accountMap.get(rawSourceId)) || safeUuid(rawSourceId) || fallbackAccountId;
+
+          const rawDestId = tx.destination_account_id;
+          const mappedDestId = rawDestId ? ((accountMap.get(rawDestId) || safeUuid(rawDestId)) ?? null) : null;
+
+          const rawCatId = tx.category_id;
+          const mappedCatId = rawCatId ? ((categoryMap.get(rawCatId) || safeUuid(rawCatId)) ?? null) : null;
+
+          await prisma.transaction.upsert({
+            where: { id: txId },
+            create: {
+              id: txId,
+              user_id: userId,
+              type: tx.type || 'expense',
+              amount: tx.amount || 0,
+              account_id: mappedSourceId,
+              destination_account_id: mappedDestId,
+              category_id: mappedCatId,
+              description: tx.description || 'Transaksi',
+              date: tx.date ? new Date(tx.date) : new Date(),
+              notes: tx.notes || null,
+            },
+            update: {
+              type: tx.type,
+              amount: tx.amount,
+              account_id: mappedSourceId,
+              destination_account_id: mappedDestId,
+              category_id: mappedCatId,
+              description: tx.description,
+              date: tx.date ? new Date(tx.date) : undefined,
+              notes: tx.notes || null,
+            },
+          });
+        }
+
+        // 4. Anggaran (Budgets)
+        for (const b of localBudgets) {
+          const bId = toValidUuid(b.id);
+          const mappedCatId = categoryMap.get(b.category_id) || safeUuid(b.category_id);
+          if (mappedCatId) {
+            await prisma.budget.upsert({
+              where: { id: bId },
+              create: {
+                id: bId,
+                user_id: userId,
+                category_id: mappedCatId,
+                amount: b.amount,
+                month: b.month,
+              },
+              update: {
+                amount: b.amount,
+                month: b.month,
+              },
+            });
+          }
+        }
+
+        // 5. Target Tabungan (Goals)
+        for (const g of localGoals) {
+          const gId = toValidUuid(g.id);
+          await prisma.goal.upsert({
+            where: { id: gId },
+            create: {
+              id: gId,
+              user_id: userId,
+              name: g.name,
+              target_amount: g.target_amount,
+              current_amount: g.current_amount || 0,
+              target_date: g.target_date ? new Date(g.target_date) : null,
+              description: g.description || null,
+            },
+            update: {
+              name: g.name,
+              target_amount: g.target_amount,
+              current_amount: g.current_amount,
+              target_date: g.target_date ? new Date(g.target_date) : null,
+              description: g.description || null,
+            },
+          });
+        }
+
+        // 6. Utang & Piutang (Debts)
+        for (const d of localDebts) {
+          const dId = toValidUuid(d.id);
+          const mappedAccId = d.account_id ? (accountMap.get(d.account_id) || safeUuid(d.account_id) || null) : null;
+          await prisma.debt.upsert({
+            where: { id: dId },
+            create: {
+              id: dId,
+              user_id: userId,
+              type: d.type || 'debt',
+              person_name: d.person_name,
+              phone_number: d.phone_number || null,
+              total_amount: d.total_amount,
+              paid_amount: d.paid_amount || 0,
+              due_date: d.due_date ? new Date(d.due_date) : null,
+              account_id: mappedAccId,
+              notes: d.notes || null,
+            },
+            update: {
+              person_name: d.person_name,
+              phone_number: d.phone_number || null,
+              total_amount: d.total_amount,
+              paid_amount: d.paid_amount,
+              due_date: d.due_date ? new Date(d.due_date) : null,
+              account_id: mappedAccId,
+              notes: d.notes || null,
+            },
+          });
+
+          if (Array.isArray(d.payments)) {
+            for (const p of d.payments) {
+              const pId = toValidUuid(p.id);
+              const pAccId = p.account_id ? (accountMap.get(p.account_id) || safeUuid(p.account_id) || null) : null;
+              await prisma.debtPayment.upsert({
+                where: { id: pId },
+                create: {
+                  id: pId,
+                  debt_id: dId,
+                  amount: p.amount,
+                  payment_date: p.payment_date ? new Date(p.payment_date) : new Date(),
+                  account_id: pAccId,
+                  notes: p.notes || null,
+                },
+                update: {
+                  amount: p.amount,
+                  payment_date: p.payment_date ? new Date(p.payment_date) : undefined,
+                  account_id: pAccId,
+                  notes: p.notes || null,
+                },
+              });
+            }
+          }
+        }
+
+        // Ambil data lengkap yang sudah tersimpan di database
+        const [freshAccounts, freshCategories, freshTransactions, freshBudgets, freshGoals, freshDebts] = await Promise.all([
+          prisma.account.findMany({ where: { user_id: userId }, orderBy: { created_at: 'asc' } }),
+          prisma.category.findMany({ where: { user_id: userId }, orderBy: { created_at: 'asc' } }),
+          prisma.transaction.findMany({ where: { user_id: userId }, orderBy: { date: 'desc' } }),
+          prisma.budget.findMany({ where: { user_id: userId } }),
+          prisma.goal.findMany({ where: { user_id: userId }, orderBy: { created_at: 'asc' } }),
+          prisma.debt.findMany({
+            where: { user_id: userId },
+            include: { payments: { orderBy: { payment_date: 'asc' } } },
+            orderBy: { created_at: 'desc' },
+          }),
+        ]);
+
+        return NextResponse.json({
+          success: true,
+          message: 'Seluruh data berhasil disinkronkan ke database cloud Supabase.',
+          accounts: freshAccounts.map((acc) => ({
+            id: acc.id,
+            name: acc.name,
+            type: acc.type,
+            account_number: acc.account_number || undefined,
+            initial_balance: Number(acc.initial_balance),
+            currency: acc.currency,
+            color: acc.color || '#3b82f6',
+            icon: acc.icon || 'Wallet',
+            is_active: acc.is_active,
+            created_at: acc.created_at.toISOString(),
+            updated_at: acc.updated_at.toISOString(),
+          })),
+          categories: freshCategories.map((cat) => ({
+            id: cat.id,
+            name: cat.name,
+            type: cat.type as 'income' | 'expense',
+            icon: cat.icon || 'Tag',
+            color: cat.color || '#3b82f6',
+            is_active: cat.is_active,
+            created_at: cat.created_at.toISOString(),
+            updated_at: cat.updated_at.toISOString(),
+          })),
+          transactions: freshTransactions.map((tx) => ({
+            id: tx.id,
+            type: tx.type as 'income' | 'expense' | 'transfer',
+            amount: Number(tx.amount),
+            account_id: tx.account_id,
+            destination_account_id: tx.destination_account_id || undefined,
+            category_id: tx.category_id || undefined,
+            description: tx.description,
+            date: tx.date instanceof Date ? tx.date.toISOString().split('T')[0] : String(tx.date).split('T')[0],
+            notes: tx.notes || undefined,
+            created_at: tx.created_at.toISOString(),
+            updated_at: tx.updated_at.toISOString(),
+          })),
+          budgets: freshBudgets.map((b) => ({
+            id: b.id,
+            category_id: b.category_id,
+            amount: Number(b.amount),
+            month: b.month,
+            created_at: b.created_at.toISOString(),
+            updated_at: b.updated_at.toISOString(),
+          })),
+          goals: freshGoals.map((g) => ({
+            id: g.id,
+            name: g.name,
+            target_amount: Number(g.target_amount),
+            current_amount: Number(g.current_amount),
+            target_date: g.target_date ? (g.target_date instanceof Date ? g.target_date.toISOString().split('T')[0] : String(g.target_date).split('T')[0]) : '',
+            description: g.description || undefined,
+            color: '#10b981',
+            icon: 'Target',
+            created_at: g.created_at.toISOString(),
+            updated_at: g.updated_at.toISOString(),
+          })),
+          debts: freshDebts.map((d) => ({
+            id: d.id,
+            type: d.type as 'receivable' | 'debt',
+            person_name: d.person_name,
+            phone_number: d.phone_number || undefined,
+            total_amount: Number(d.total_amount),
+            paid_amount: Number(d.paid_amount),
+            due_date: d.due_date ? (d.due_date instanceof Date ? d.due_date.toISOString().split('T')[0] : String(d.due_date).split('T')[0]) : undefined,
+            account_id: d.account_id || undefined,
+            notes: d.notes || undefined,
+            created_at: d.created_at.toISOString(),
+            updated_at: d.updated_at.toISOString(),
+            payments: d.payments.map((p) => ({
+              id: p.id,
+              debt_id: p.debt_id,
+              amount: Number(p.amount),
+              payment_date: p.payment_date instanceof Date ? p.payment_date.toISOString().split('T')[0] : String(p.payment_date).split('T')[0],
+              account_id: p.account_id || undefined,
+              notes: p.notes || undefined,
+              created_at: p.created_at.toISOString(),
+            })),
+          })),
+        });
+      }
+
       // 1. ACCOUNTS
       case 'upsertAccount': {
         const accId = toValidUuid(data.id);

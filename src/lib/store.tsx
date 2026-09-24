@@ -14,7 +14,7 @@ import { calculateAccountBalance, validateTransactionBalance } from './calculati
 import { formatRupiah } from './utils/formatters';
 import { supabase, isSupabaseConfigured } from './supabase/client';
 import { signOutSupabase } from './supabase/auth';
-import { pullUserCloudData, pushCloudMutation } from './supabase/sync';
+import { pullUserCloudData, pushCloudMutation, batchSyncLocalData } from './supabase/sync';
 
 function generateId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -121,6 +121,10 @@ interface DompetKuContextType {
   resetToDemoData: () => void;
   logout: () => Promise<void>;
 
+  // Cloud Database Sync
+  syncToCloud: () => Promise<boolean>;
+  isSyncing: boolean;
+
   // Toast
   toasts: ToastItem[];
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
@@ -162,6 +166,9 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
 
   // Toast State
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+
+  // Syncing State
+  const [isSyncing, setIsSyncing] = useState(false);
 
   // Apply dark class to <html> element
   useEffect(() => {
@@ -287,41 +294,62 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
           setUser(parsedUser);
           if (parsedUser.theme) setThemeState(parsedUser.theme);
 
+          let parsedAccounts: Account[] = [];
           const savedAccounts = localStorage.getItem(`${STORAGE_KEY_PREFIX}_accounts`);
           if (savedAccounts && savedAccounts !== 'null' && savedAccounts !== 'undefined') {
             const parsed = JSON.parse(savedAccounts);
-            if (Array.isArray(parsed)) setAccounts(parsed);
+            if (Array.isArray(parsed)) {
+              parsedAccounts = parsed;
+              setAccounts(parsed);
+            }
           }
 
+          let parsedCategories: Category[] = [];
           const savedCategories = localStorage.getItem(`${STORAGE_KEY_PREFIX}_categories`);
           if (savedCategories && savedCategories !== 'null' && savedCategories !== 'undefined') {
             const parsed = JSON.parse(savedCategories);
-            if (Array.isArray(parsed)) setCategories(parsed);
+            if (Array.isArray(parsed)) {
+              parsedCategories = parsed;
+              setCategories(parsed);
+            }
           }
 
+          let parsedTransactions: Transaction[] = [];
           const savedTransactions = localStorage.getItem(`${STORAGE_KEY_PREFIX}_transactions`);
           if (savedTransactions && savedTransactions !== 'null' && savedTransactions !== 'undefined') {
             const parsed = JSON.parse(savedTransactions);
-            if (Array.isArray(parsed)) setTransactions(parsed);
+            if (Array.isArray(parsed)) {
+              parsedTransactions = parsed;
+              setTransactions(parsed);
+            }
           }
 
+          let parsedBudgets: Budget[] = [];
           const savedBudgets = localStorage.getItem(`${STORAGE_KEY_PREFIX}_budgets`);
           if (savedBudgets && savedBudgets !== 'null' && savedBudgets !== 'undefined') {
             const parsed = JSON.parse(savedBudgets);
-            if (Array.isArray(parsed)) setBudgets(parsed);
+            if (Array.isArray(parsed)) {
+              parsedBudgets = parsed;
+              setBudgets(parsed);
+            }
           }
 
+          let parsedGoals: Goal[] = [];
           const savedGoals = localStorage.getItem(`${STORAGE_KEY_PREFIX}_goals`);
           if (savedGoals && savedGoals !== 'null' && savedGoals !== 'undefined') {
             const parsed = JSON.parse(savedGoals);
-            if (Array.isArray(parsed)) setGoals(parsed);
+            if (Array.isArray(parsed)) {
+              parsedGoals = parsed;
+              setGoals(parsed);
+            }
           }
 
+          let cleanDebts: Debt[] = [];
           const savedDebts = localStorage.getItem(`${STORAGE_KEY_PREFIX}_debts`);
           if (savedDebts && savedDebts !== 'null' && savedDebts !== 'undefined') {
             const parsed = JSON.parse(savedDebts);
             if (Array.isArray(parsed)) {
-              const cleanDebts = parsed.filter(
+              cleanDebts = parsed.filter(
                 (d: Debt) => !['debt-rec-1', 'debt-rec-2', 'debt-pay-1', 'debt-pay-2'].includes(d.id)
               );
               setDebts(cleanDebts);
@@ -339,12 +367,41 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
               parsedUser.avatar_url
             ).then((cloud) => {
               if (cloud && cloud.success) {
-                if (cloud.accounts) setAccounts(cloud.accounts);
-                if (cloud.categories && cloud.categories.length > 0) setCategories(cloud.categories);
-                if (cloud.transactions) setTransactions(cloud.transactions);
-                if (cloud.budgets) setBudgets(cloud.budgets);
-                if (cloud.goals) setGoals(cloud.goals);
-                if (cloud.debts) setDebts(cloud.debts);
+                const cloudHasTransactions = Array.isArray(cloud.transactions) && cloud.transactions.length > 0;
+                const cloudHasAccounts = Array.isArray(cloud.accounts) && cloud.accounts.length > 0;
+                const localHasTransactions = parsedTransactions.length > 0;
+                const localHasAccounts = parsedAccounts.length > 0;
+
+                // Jika di cloud transaksi masih kosong tetapi pengguna sudah punya transaksi/rekening di browser lokal,
+                // otomatis jalankan batch migration ke database cloud Supabase!
+                if (!cloudHasTransactions && (localHasTransactions || localHasAccounts)) {
+                  console.log('🔄 Mendeteksi data lokal yang belum ada di cloud. Memulai sinkronisasi otomatis ke Supabase...');
+                  batchSyncLocalData(parsedUser.id, {
+                    accounts: parsedAccounts,
+                    categories: parsedCategories,
+                    transactions: parsedTransactions,
+                    budgets: parsedBudgets,
+                    goals: parsedGoals,
+                    debts: cleanDebts,
+                  }).then((synced) => {
+                    if (synced && synced.success) {
+                      if (synced.accounts) setAccounts(synced.accounts);
+                      if (synced.categories && synced.categories.length > 0) setCategories(synced.categories);
+                      if (synced.transactions) setTransactions(synced.transactions);
+                      if (synced.budgets) setBudgets(synced.budgets);
+                      if (synced.goals) setGoals(synced.goals);
+                      if (synced.debts) setDebts(synced.debts);
+                      console.log('✅ Berhasil migrasi seluruh data lokal ke database Supabase.');
+                    }
+                  }).catch(console.warn);
+                } else {
+                  if (cloud.accounts) setAccounts(cloud.accounts);
+                  if (cloud.categories && cloud.categories.length > 0) setCategories(cloud.categories);
+                  if (cloud.transactions) setTransactions(cloud.transactions);
+                  if (cloud.budgets) setBudgets(cloud.budgets);
+                  if (cloud.goals) setGoals(cloud.goals);
+                  if (cloud.debts) setDebts(cloud.debts);
+                }
               }
             }).catch(console.warn);
           }
@@ -1190,6 +1247,47 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
     showToast('Berhasil keluar dari akun.', 'info');
   }, [showToast]);
 
+  const syncToCloud = useCallback(async (): Promise<boolean> => {
+    if (!user?.id || !user.id.includes('-')) {
+      showToast('Silakan masuk ke akun Anda terlebih dahulu untuk menyinkronkan data.', 'error');
+      return false;
+    }
+
+    setIsSyncing(true);
+    showToast('Sedang menyinkronkan data ke database cloud Supabase...', 'info');
+
+    try {
+      const result = await batchSyncLocalData(user.id, {
+        accounts,
+        categories,
+        transactions,
+        budgets,
+        goals,
+        debts,
+      });
+
+      if (result && result.success) {
+        if (result.accounts) setAccounts(result.accounts);
+        if (result.categories && result.categories.length > 0) setCategories(result.categories);
+        if (result.transactions) setTransactions(result.transactions);
+        if (result.budgets) setBudgets(result.budgets);
+        if (result.goals) setGoals(result.goals);
+        if (result.debts) setDebts(result.debts);
+        showToast('Sinkronisasi ke database cloud Supabase berhasil!', 'success');
+        return true;
+      } else {
+        showToast('Sinkronisasi data gagal. Silakan coba sesaat lagi.', 'error');
+        return false;
+      }
+    } catch (e) {
+      console.error('syncToCloud error:', e);
+      showToast('Terjadi kesalahan saat menyinkronkan data ke cloud.', 'error');
+      return false;
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [user?.id, accounts, categories, transactions, budgets, goals, debts, showToast]);
+
   return (
     <DompetKuContext.Provider
       value={{
@@ -1246,6 +1344,8 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
         resetAllFinancialData,
         resetToDemoData,
         logout,
+        syncToCloud,
+        isSyncing,
         toasts,
         showToast,
         removeToast,

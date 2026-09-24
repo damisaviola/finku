@@ -24,6 +24,9 @@ import {
   ExternalLink,
   Smartphone,
   Download,
+  Cloud,
+  RefreshCw,
+  CheckCircle2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useDompetKu } from '@/lib/store';
@@ -31,7 +34,19 @@ import { FontSize } from '@/types';
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { user, updateUser, resetToDemoData, logout, showToast, fontSize, setFontSize, isPrivacyMode, togglePrivacyMode } = useDompetKu();
+  const {
+    user,
+    updateUser,
+    resetToDemoData,
+    logout,
+    showToast,
+    fontSize,
+    setFontSize,
+    isPrivacyMode,
+    togglePrivacyMode,
+    syncToCloud,
+    isSyncing,
+  } = useDompetKu();
 
   const isGoogleUser = user?.provider === 'google' || Boolean(user?.avatar_url?.includes('googleusercontent.com'));
 
@@ -706,7 +721,43 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* 5. KARTU ATUR ULANG DATA FINANSIAL */}
+      {/* 5. KARTU SINKRONISASI CLOUD DATABASE */}
+      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 sm:p-7 shadow-xs ring-1 ring-zinc-950/5 dark:ring-white/5 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center justify-center shrink-0">
+              <Cloud className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-bold tracking-tight text-zinc-950 dark:text-white">
+                  Sinkronisasi Database Cloud
+                </h3>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-semibold flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3" />
+                  <span>Supabase PostgreSQL Aktif</span>
+                </span>
+              </div>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                Pastikan seluruh rekening, mutasi transaksi, dan pagu anggaran lokal Anda tersimpan aman di database cloud.
+              </p>
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            variant="primary"
+            disabled={isSyncing}
+            className="h-9.5 px-4 font-semibold shadow-xs self-start sm:self-auto cursor-pointer"
+            onClick={() => syncToCloud()}
+          >
+            <RefreshCw className={`h-3.5 w-3.5 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+            <span>{isSyncing ? 'Menyinkronkan...' : 'Sinkronkan Sekarang'}</span>
+          </Button>
+        </div>
+      </div>
+
+      {/* 6. KARTU ATUR ULANG DATA FINANSIAL */}
       <div className="rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/20 dark:bg-rose-950/15 p-6 sm:p-7 shadow-xs ring-1 ring-rose-950/5 dark:ring-white/5 space-y-4">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 flex items-center justify-center shrink-0">
