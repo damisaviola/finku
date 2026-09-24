@@ -33,12 +33,105 @@ export async function GET(request: Request) {
       );
     }
 
-    // Pastikan user ada di tabel public.users
-    let userRecord = await prisma.user.findUnique({
-      where: { id: userId },
-    });
+    // Query tunggal teroptimasi tinggi dengan raw aggregation (1 network roundtrip ke database Supabase Tokyo)
+    const rawRows = await prisma.$queryRaw<Array<{
+      id: string;
+      name: string;
+      email: string;
+      avatar_url: string | null;
+      accounts: any[];
+      categories: any[];
+      transactions: any[];
+      budgets: any[];
+      goals: any[];
+      debts: any[];
+    }>>`
+      SELECT 
+        u.id, u.name, u.email, u.avatar_url,
+        COALESCE((
+          SELECT json_agg(json_build_object(
+            'id', a.id, 'user_id', a.user_id, 'name', a.name, 'type', a.type,
+            'account_number', a.account_number, 'initial_balance', a.initial_balance,
+            'currency', a.currency, 'icon', a.icon, 'color', a.color, 'is_active', a.is_active,
+            'created_at', a.created_at, 'updated_at', a.updated_at
+          ) ORDER BY a.created_at ASC)
+          FROM accounts a WHERE a.user_id = u.id
+        ), '[]'::json) as accounts,
+        COALESCE((
+          SELECT json_agg(json_build_object(
+            'id', c.id, 'user_id', c.user_id, 'name', c.name, 'type', c.type,
+            'icon', c.icon, 'color', c.color, 'is_active', c.is_active,
+            'created_at', c.created_at, 'updated_at', c.updated_at
+          ) ORDER BY c.created_at ASC)
+          FROM categories c WHERE c.user_id = u.id
+        ), '[]'::json) as categories,
+        COALESCE((
+          SELECT json_agg(json_build_object(
+            'id', t.id, 'user_id', t.user_id, 'type', t.type, 'amount', t.amount,
+            'account_id', t.account_id, 'destination_account_id', t.destination_account_id,
+            'category_id', t.category_id, 'description', t.description,
+            'date', t.date, 'notes', t.notes, 'created_at', t.created_at, 'updated_at', t.updated_at
+          ) ORDER BY t.date DESC)
+          FROM (SELECT * FROM transactions WHERE user_id = u.id ORDER BY date DESC LIMIT 300) t
+        ), '[]'::json) as transactions,
+        COALESCE((
+          SELECT json_agg(json_build_object(
+            'id', b.id, 'user_id', b.user_id, 'category_id', b.category_id,
+            'amount', b.amount, 'month', b.month, 'created_at', b.created_at, 'updated_at', b.updated_at
+          ))
+          FROM budgets b WHERE b.user_id = u.id
+        ), '[]'::json) as budgets,
+        COALESCE((
+          SELECT json_agg(json_build_object(
+            'id', g.id, 'user_id', g.user_id, 'name', g.name, 'target_amount', g.target_amount,
+            'current_amount', g.current_amount, 'target_date', g.target_date,
+            'description', g.description, 'created_at', g.created_at, 'updated_at', g.updated_at
+          ) ORDER BY g.created_at ASC)
+          FROM goals g WHERE g.user_id = u.id
+        ), '[]'::json) as goals,
+        COALESCE((
+          SELECT json_agg(json_build_object(
+            'id', d.id, 'user_id', d.user_id, 'type', d.type, 'person_name', d.person_name,
+            'phone_number', d.phone_number, 'total_amount', d.total_amount, 'paid_amount', d.paid_amount,
+            'due_date', d.due_date, 'account_id', d.account_id, 'notes', d.notes,
+            'created_at', d.created_at, 'updated_at', d.updated_at,
+            'payments', COALESCE((
+              SELECT json_agg(json_build_object(
+                'id', p.id, 'debt_id', p.debt_id, 'amount', p.amount,
+                'payment_date', p.payment_date, 'account_id', p.account_id,
+                'notes', p.notes, 'created_at', p.created_at
+              ) ORDER BY p.payment_date ASC)
+              FROM debt_payments p WHERE p.debt_id = d.id
+            ), '[]'::json)
+          ) ORDER BY d.created_at DESC)
+          FROM debts d WHERE d.user_id = u.id
+        ), '[]'::json) as debts
+      FROM users u
+      WHERE u.id = ${userId}::uuid
+    `;
+
+    let userRecord: any = rawRows.length > 0 ? rawRows[0] : null;
 
     if (!userRecord && email) {
+      const defaultCategories = [
+        { name: 'Makanan', type: 'expense', icon: 'Utensils', color: '#f97316' },
+        { name: 'Transportasi', type: 'expense', icon: 'Car', color: '#0284c7' },
+        { name: 'Belanja', type: 'expense', icon: 'ShoppingBag', color: '#ec4899' },
+        { name: 'Tagihan', type: 'expense', icon: 'Receipt', color: '#8b5cf6' },
+        { name: 'Hiburan', type: 'expense', icon: 'Film', color: '#f43f5e' },
+        { name: 'Kesehatan', type: 'expense', icon: 'HeartPulse', color: '#10b981' },
+        { name: 'Pendidikan', type: 'expense', icon: 'GraduationCap', color: '#6366f1' },
+        { name: 'Perjalanan', type: 'expense', icon: 'Plane', color: '#eab308' },
+        { name: 'Langganan', type: 'expense', icon: 'CreditCard', color: '#64748b' },
+        { name: 'Lainnya', type: 'expense', icon: 'MoreHorizontal', color: '#94a3b8' },
+        { name: 'Gaji', type: 'income', icon: 'Briefcase', color: '#10b981' },
+        { name: 'Freelance', type: 'income', icon: 'Laptop', color: '#3b82f6' },
+        { name: 'Bisnis', type: 'income', icon: 'Store', color: '#8b5cf6' },
+        { name: 'Bonus', type: 'income', icon: 'Award', color: '#f59e0b' },
+        { name: 'Hadiah', type: 'income', icon: 'Gift', color: '#ec4899' },
+        { name: 'Investasi', type: 'income', icon: 'TrendingUp', color: '#059669' },
+      ];
+
       userRecord = await prisma.user.upsert({
         where: { email: email.toLowerCase().trim() },
         create: {
@@ -46,10 +139,24 @@ export async function GET(request: Request) {
           email: email.toLowerCase().trim(),
           name: name?.trim() || email.split('@')[0],
           avatar_url: avatarUrl || null,
+          categories: {
+            create: defaultCategories,
+          },
         },
         update: {
           name: name?.trim() || undefined,
           avatar_url: avatarUrl || undefined,
+        },
+        include: {
+          accounts: { orderBy: { created_at: 'asc' } },
+          categories: { orderBy: { created_at: 'asc' } },
+          transactions: { orderBy: { date: 'desc' }, take: 300 },
+          budgets: true,
+          goals: { orderBy: { created_at: 'asc' } },
+          debts: {
+            include: { payments: { orderBy: { payment_date: 'asc' } } },
+            orderBy: { created_at: 'desc' },
+          },
         },
       });
     }
@@ -67,39 +174,8 @@ export async function GET(request: Request) {
       });
     }
 
-    // Ambil seluruh data pengguna
-    const [accounts, categories, transactions, budgets, goals, debts] = await Promise.all([
-      prisma.account.findMany({
-        where: { user_id: userRecord.id },
-        orderBy: { created_at: 'asc' },
-      }),
-      prisma.category.findMany({
-        where: { user_id: userRecord.id },
-        orderBy: { created_at: 'asc' },
-      }),
-      prisma.transaction.findMany({
-        where: { user_id: userRecord.id },
-        orderBy: { date: 'desc' },
-      }),
-      prisma.budget.findMany({
-        where: { user_id: userRecord.id },
-      }),
-      prisma.goal.findMany({
-        where: { user_id: userRecord.id },
-        orderBy: { created_at: 'asc' },
-      }),
-      prisma.debt.findMany({
-        where: { user_id: userRecord.id },
-        include: {
-          payments: {
-            orderBy: { payment_date: 'asc' },
-          },
-        },
-        orderBy: { created_at: 'desc' },
-      }),
-    ]);
-
-    let userCategories = categories;
+    // Jika kategori masih kosong (misal migrasi data akun lama), isi sekali
+    let userCategories = userRecord.categories;
     if (userCategories.length === 0) {
       const defaultCategories = [
         { user_id: userRecord.id, name: 'Makanan', type: 'expense', icon: 'Utensils', color: '#f97316' },
@@ -129,39 +205,7 @@ export async function GET(request: Request) {
       });
     }
 
-    let userAccounts = accounts;
-    if (userAccounts.length === 0) {
-      const defaultAccounts = [
-        {
-          user_id: userRecord.id,
-          name: 'Kas Tunai',
-          type: 'Uang Tunai',
-          initial_balance: 0,
-          currency: 'IDR',
-          color: '#10b981',
-          icon: 'Banknote',
-          is_active: true,
-        },
-        {
-          user_id: userRecord.id,
-          name: 'Rekening Bank',
-          type: 'Bank',
-          initial_balance: 0,
-          currency: 'IDR',
-          color: '#3b82f6',
-          icon: 'Landmark',
-          is_active: true,
-        },
-      ];
-      await prisma.account.createMany({
-        data: defaultAccounts,
-        skipDuplicates: true,
-      });
-      userAccounts = await prisma.account.findMany({
-        where: { user_id: userRecord.id },
-        orderBy: { created_at: 'asc' },
-      });
-    }
+    const userAccounts = userRecord.accounts;
 
     return NextResponse.json({
       success: true,
@@ -171,82 +215,82 @@ export async function GET(request: Request) {
         email: userRecord.email,
         avatar_url: userRecord.avatar_url,
       },
-      accounts: userAccounts.map((acc) => ({
+      accounts: userAccounts.map((acc: any) => ({
         id: acc.id,
         name: acc.name,
         type: acc.type,
         account_number: acc.account_number || undefined,
-        initial_balance: Number(acc.initial_balance),
-        currency: acc.currency,
+        initial_balance: Number(acc.initial_balance || 0),
+        currency: acc.currency || 'IDR',
         color: acc.color || '#3b82f6',
         icon: acc.icon || 'Wallet',
-        is_active: acc.is_active,
-        created_at: acc.created_at.toISOString(),
-        updated_at: acc.updated_at.toISOString(),
+        is_active: acc.is_active ?? true,
+        created_at: acc.created_at instanceof Date ? acc.created_at.toISOString() : String(acc.created_at),
+        updated_at: acc.updated_at instanceof Date ? acc.updated_at.toISOString() : String(acc.updated_at),
       })),
-      categories: userCategories.map((cat) => ({
+      categories: userCategories.map((cat: any) => ({
         id: cat.id,
         name: cat.name,
         type: cat.type as 'income' | 'expense',
         icon: cat.icon || 'Tag',
         color: cat.color || '#3b82f6',
-        is_active: cat.is_active,
-        created_at: cat.created_at.toISOString(),
-        updated_at: cat.updated_at.toISOString(),
+        is_active: cat.is_active ?? true,
+        created_at: cat.created_at instanceof Date ? cat.created_at.toISOString() : String(cat.created_at),
+        updated_at: cat.updated_at instanceof Date ? cat.updated_at.toISOString() : String(cat.updated_at),
       })),
-      transactions: transactions.map((tx) => ({
+      transactions: (userRecord.transactions || []).map((tx: any) => ({
         id: tx.id,
         type: tx.type as 'income' | 'expense' | 'transfer',
-        amount: Number(tx.amount),
+        amount: Number(tx.amount || 0),
         account_id: tx.account_id,
         destination_account_id: tx.destination_account_id || undefined,
         category_id: tx.category_id || undefined,
         description: tx.description,
         date: tx.date instanceof Date ? tx.date.toISOString().split('T')[0] : String(tx.date).split('T')[0],
         notes: tx.notes || undefined,
-        created_at: tx.created_at.toISOString(),
-        updated_at: tx.updated_at.toISOString(),
+        created_at: tx.created_at instanceof Date ? tx.created_at.toISOString() : String(tx.created_at),
+        updated_at: tx.updated_at instanceof Date ? tx.updated_at.toISOString() : String(tx.updated_at),
       })),
-      budgets: budgets.map((b) => ({
+      budgets: (userRecord.budgets || []).map((b: any) => ({
         id: b.id,
         category_id: b.category_id,
-        amount: Number(b.amount),
+        amount: Number(b.amount || 0),
         month: b.month,
-        created_at: b.created_at.toISOString(),
-        updated_at: b.updated_at.toISOString(),
+        created_at: b.created_at instanceof Date ? b.created_at.toISOString() : String(b.created_at),
+        updated_at: b.updated_at instanceof Date ? b.updated_at.toISOString() : String(b.updated_at),
       })),
-      goals: goals.map((g) => ({
+      goals: (userRecord.goals || []).map((g: any) => ({
         id: g.id,
         name: g.name,
-        target_amount: Number(g.target_amount),
-        current_amount: Number(g.current_amount),
+        target_amount: Number(g.target_amount || 0),
+        current_amount: Number(g.current_amount || 0),
         target_date: g.target_date ? (g.target_date instanceof Date ? g.target_date.toISOString().split('T')[0] : String(g.target_date).split('T')[0]) : '',
         description: g.description || undefined,
         color: '#10b981',
         icon: 'Target',
-        created_at: g.created_at.toISOString(),
-        updated_at: g.updated_at.toISOString(),
+        created_at: g.created_at instanceof Date ? g.created_at.toISOString() : String(g.created_at),
+        updated_at: g.updated_at instanceof Date ? g.updated_at.toISOString() : String(g.updated_at),
       })),
-      debts: debts.map((d) => ({
+      debts: (userRecord.debts || []).map((d: any) => ({
         id: d.id,
         type: d.type as 'receivable' | 'debt',
         person_name: d.person_name,
         phone_number: d.phone_number || undefined,
-        total_amount: Number(d.total_amount),
-        paid_amount: Number(d.paid_amount),
+        total_amount: Number(d.total_amount || 0),
+        paid_amount: Number(d.paid_amount || 0),
         due_date: d.due_date ? (d.due_date instanceof Date ? d.due_date.toISOString().split('T')[0] : String(d.due_date).split('T')[0]) : undefined,
         account_id: d.account_id || undefined,
         notes: d.notes || undefined,
-        created_at: d.created_at.toISOString(),
-        updated_at: d.updated_at.toISOString(),
-        payments: d.payments.map((p) => ({
+        created_at: d.created_at instanceof Date ? d.created_at.toISOString() : String(d.created_at),
+        updated_at: d.updated_at instanceof Date ? d.updated_at.toISOString() : String(d.updated_at),
+        payments: (d.payments || []).map((p: any) => ({
           id: p.id,
           debt_id: p.debt_id,
-          amount: Number(p.amount),
+          amount: Number(p.amount || 0),
           payment_date: p.payment_date instanceof Date ? p.payment_date.toISOString().split('T')[0] : String(p.payment_date).split('T')[0],
           account_id: p.account_id || undefined,
           notes: p.notes || undefined,
-          created_at: p.created_at.toISOString(),
+          created_at: p.created_at instanceof Date ? p.created_at.toISOString() : String(p.created_at),
         })),
       })),
     });

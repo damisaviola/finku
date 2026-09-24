@@ -44,6 +44,7 @@ export default function DashboardPage() {
     isPrivacyMode,
     togglePrivacyMode,
     formatAmount,
+    isDataLoading,
   } = useDompetKu();
 
   const totalBalance = calculateTotalBalance(accounts, transactions);
@@ -96,6 +97,35 @@ export default function DashboardPage() {
       pengeluaran: currentMonthSummary.expense,
     },
   ];
+
+  if (isDataLoading && accounts.length === 0 && transactions.length === 0) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-2">
+            <div className="h-6 w-48 bg-zinc-200 dark:bg-zinc-800 rounded-md" />
+            <div className="h-4 w-72 bg-zinc-100 dark:bg-zinc-800/60 rounded-md" />
+          </div>
+          <div className="flex gap-2">
+            <div className="h-9 w-24 bg-zinc-200 dark:bg-zinc-800 rounded-lg" />
+            <div className="h-9 w-32 bg-zinc-200 dark:bg-zinc-800 rounded-lg" />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-28 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-5 space-y-3">
+              <div className="h-4 w-20 bg-zinc-200 dark:bg-zinc-800 rounded" />
+              <div className="h-6 w-32 bg-zinc-300 dark:bg-zinc-700 rounded" />
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 h-72 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800" />
+          <div className="h-72 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

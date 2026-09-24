@@ -3,14 +3,14 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Plus, ChevronRight, Calendar, Sun, Moon, Eye, EyeOff } from 'lucide-react';
+import { Plus, ChevronRight, Calendar, Sun, Moon, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useDompetKu } from '@/lib/store';
 import { formatBulan } from '@/lib/utils/formatters';
 
 export function Header() {
   const pathname = usePathname();
-  const { openTransactionModal, activeMonth, isDarkMode, toggleTheme, isPrivacyMode, togglePrivacyMode } = useDompetKu();
+  const { openTransactionModal, activeMonth, isDarkMode, toggleTheme, isPrivacyMode, togglePrivacyMode, isSyncing } = useDompetKu();
 
   const getBreadcrumbs = () => {
     if (pathname.startsWith('/dashboard')) {
@@ -78,6 +78,14 @@ export function Header() {
           <Calendar className="h-3.5 w-3.5 text-amber-500" />
           <span>{formatBulan(activeMonth)}</span>
         </div>
+
+        {/* Live Database Syncing Badge */}
+        {isSyncing && (
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs font-medium border border-amber-500/20 animate-pulse">
+            <RefreshCw className="h-3 w-3 animate-spin" />
+            <span className="hidden sm:inline">Sinkron...</span>
+          </div>
+        )}
 
         {/* Privacy Mode (Sensor Saldo) Button */}
         <button

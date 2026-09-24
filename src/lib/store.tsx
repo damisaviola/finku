@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { Account, Category, Transaction, Budget, Goal, UserProfile, TransactionType, FontSize, Debt, DebtPayment } from '@/types';
 import {
   INITIAL_ACCOUNTS,
@@ -124,6 +124,7 @@ interface DompetKuContextType {
   // Cloud Database Sync
   syncToCloud: () => Promise<boolean>;
   isSyncing: boolean;
+  isDataLoading: boolean;
 
   // Toast
   toasts: ToastItem[];
@@ -169,6 +170,7 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
 
   // Syncing State
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isDataLoading, setIsDataLoading] = useState(true);
 
   // Apply dark class to <html> element
   useEffect(() => {
@@ -338,12 +340,29 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Muat data langsung dari database Supabase PostgreSQL setiap kali pengguna login
-  useEffect(() => {
-    if (!isClient || !user?.id) return;
+  // Track user ID yang datanya sudah berhasil dimuat untuk mencegah redundant fetch
+  const lastLoadedUserIdRef = useRef<string | null>(null);
 
-    pullUserCloudData(user.id, user.email, user.name, user.avatar_url)
-      .then((cloud) => {
+  // Fungsi tunggal terpadu untuk memuat data database cloud Supabase
+  const loadUserDataFromDatabase = useCallback(
+    async (
+      targetUserId: string,
+      targetEmail?: string,
+      targetName?: string,
+      targetAvatar?: string,
+      force: boolean = false
+    ) => {
+      if (!targetUserId) return;
+      if (!force && lastLoadedUserIdRef.current === targetUserId) {
+        return;
+      }
+
+      lastLoadedUserIdRef.current = targetUserId;
+      setIsDataLoading(true);
+      setIsSyncing(true);
+
+      try {
+        const cloud = await pullUserCloudData(targetUserId, targetEmail, targetName, targetAvatar, force);
         if (cloud && cloud.success) {
           if (cloud.accounts) setAccounts(cloud.accounts);
           if (cloud.categories && cloud.categories.length > 0) setCategories(cloud.categories);
@@ -352,9 +371,23 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
           if (cloud.goals) setGoals(cloud.goals);
           if (cloud.debts) setDebts(cloud.debts);
         }
-      })
-      .catch(console.warn);
-  }, [isClient, user?.id, user?.email, user?.name, user?.avatar_url]);
+      } catch (err) {
+        console.warn('Gagal memuat data cloud pengguna:', err);
+      } finally {
+        setIsDataLoading(false);
+        setIsSyncing(false);
+      }
+    },
+    []
+  );
+
+  // Jika sesi lokal pengguna ada saat startup tapi data database belum dimuat
+  useEffect(() => {
+    if (!isClient || !user?.id) return;
+    if (lastLoadedUserIdRef.current !== user.id) {
+      loadUserDataFromDatabase(user.id, user.email, user.name, user.avatar_url);
+    }
+  }, [isClient, user?.id, user?.email, user?.name, user?.avatar_url, loadUserDataFromDatabase]);
 
   // Hanya simpan sesi autentikasi pengguna ke localStorage (TIDAK ADA DATA FINANSIAL DI LOCALSTORAGE)
   useEffect(() => {
@@ -370,71 +403,86 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isClient, user]);
 
-  // Listen for Supabase Auth state changes and pull database data
+  // Listener autentikasi Supabase dan sinkronisasi data cloud tunggal
   useEffect(() => {
-    if (!isSupabaseConfigured || !supabase) return;
+    if (!isClient) return;
 
-    const syncSessionCloudData = async (
-      sessionUser: import('@supabase/supabase-js').User
-    ) => {
+    if (!isSupabaseConfigured || !supabase) {
+      if (!user?.id) {
+        setIsDataLoading(false);
+      }
+      return;
+    }
+
+    let isMounted = true;
+
+    const handleAuthUser = (sessionUser: import('@supabase/supabase-js').User) => {
       const meta = sessionUser.user_metadata || {};
-      const isGoogle = sessionUser.app_metadata?.provider === 'google' || Boolean(meta.avatar_url?.includes('googleusercontent.com'));
-      const resolvedName = meta.full_name || meta.name || sessionUser.email?.split('@')[0] || 'Pengguna DompetKu';
+      const isGoogle =
+        sessionUser.app_metadata?.provider === 'google' ||
+        Boolean(meta.avatar_url?.includes('googleusercontent.com'));
+      const resolvedName =
+        meta.full_name || meta.name || sessionUser.email?.split('@')[0] || 'Pengguna DompetKu';
       const resolvedAvatar = meta.avatar_url || meta.picture;
 
-      setUser((prev) => ({
-        id: sessionUser.id,
-        name: resolvedName,
-        email: sessionUser.email || '',
-        avatar_url: resolvedAvatar || prev?.avatar_url,
-        provider: isGoogle ? 'google' : (prev?.provider || 'email'),
-        currency: prev?.currency || 'IDR',
-        timezone: prev?.timezone || 'Asia/Jakarta',
-        theme: prev?.theme || 'system',
-        fontSize: prev?.fontSize || 'normal',
-      }));
-
-      try {
-        const cloud = await pullUserCloudData(sessionUser.id, sessionUser.email, resolvedName, resolvedAvatar);
-        if (cloud && cloud.success) {
-          if (cloud.accounts) setAccounts(cloud.accounts);
-          if (cloud.categories && cloud.categories.length > 0) setCategories(cloud.categories);
-          if (cloud.transactions) setTransactions(cloud.transactions);
-          if (cloud.budgets) setBudgets(cloud.budgets);
-          if (cloud.goals) setGoals(cloud.goals);
-          if (cloud.debts) setDebts(cloud.debts);
+      setUser((prev) => {
+        if (
+          prev?.id === sessionUser.id &&
+          prev?.name === resolvedName &&
+          prev?.email === (sessionUser.email || '') &&
+          prev?.avatar_url === (resolvedAvatar || prev?.avatar_url)
+        ) {
+          return prev;
         }
-      } catch (err) {
-        console.warn('Gagal memuat data cloud pengguna:', err);
-      }
+        return {
+          id: sessionUser.id,
+          name: resolvedName,
+          email: sessionUser.email || '',
+          avatar_url: resolvedAvatar || prev?.avatar_url,
+          provider: isGoogle ? 'google' : (prev?.provider || 'email'),
+          currency: prev?.currency || 'IDR',
+          timezone: prev?.timezone || 'Asia/Jakarta',
+          theme: prev?.theme || 'system',
+          fontSize: prev?.fontSize || 'normal',
+        };
+      });
+
+      loadUserDataFromDatabase(sessionUser.id, sessionUser.email, resolvedName, resolvedAvatar);
     };
 
-    // Check initial session
+    // Cek sesi awal
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!isMounted) return;
       if (session?.user) {
-        syncSessionCloudData(session.user);
+        handleAuthUser(session.user);
+      } else {
+        setIsDataLoading(false);
       }
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!isMounted) return;
       if (event === 'SIGNED_IN' && session?.user) {
-        syncSessionCloudData(session.user);
+        handleAuthUser(session.user);
       } else if (event === 'SIGNED_OUT') {
+        lastLoadedUserIdRef.current = null;
         setUser(null);
         setAccounts([]);
         setTransactions([]);
         setBudgets([]);
         setGoals([]);
         setDebts([]);
+        setIsDataLoading(false);
       }
     });
 
     return () => {
+      isMounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [isClient, loadUserDataFromDatabase, user?.id]);
 
   const openTransactionModal = useCallback((type: TransactionType = 'expense', editTx: Transaction | null = null, initialDate: string | null = null) => {
     setTransactionModalInitialType(type);
@@ -1394,6 +1442,9 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
     initialGoals?: Goal[],
     initialDebts?: Debt[]
   ) => {
+    lastLoadedUserIdRef.current = profile.id;
+    setIsDataLoading(false);
+    setIsSyncing(false);
     setUser(profile);
     const accs = Array.isArray(initialAccounts) ? initialAccounts : [];
     const cats = Array.isArray(initialCategories) && initialCategories.length > 0 ? initialCategories : INITIAL_CATEGORIES;
@@ -1541,6 +1592,7 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
         logout,
         syncToCloud,
         isSyncing,
+        isDataLoading,
         toasts,
         showToast,
         removeToast,

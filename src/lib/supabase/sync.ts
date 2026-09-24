@@ -17,39 +17,84 @@ export interface CloudDataResponse {
   error?: string;
 }
 
+let ongoingPullPromise: Promise<CloudDataResponse | null> | null = null;
+let cachedData: CloudDataResponse | null = null;
+let lastPullTimestamp = 0;
+let lastUserId = '';
+const CACHE_MAX_AGE_MS = 10000; // 10 detik cache untuk navigasi instan antar-halaman
+
+/**
+ * Menghapus cache in-memory saat ada data baru yang disimpan
+ */
+export function invalidateCloudCache() {
+  cachedData = null;
+  lastPullTimestamp = 0;
+  ongoingPullPromise = null;
+}
+
 /**
  * Mengambil seluruh data pengguna yang tersimpan di database cloud Supabase
+ * Dilengkapi dengan deduplikasi request agar tidak terjadi multiple fetch bersamaan
  */
 export async function pullUserCloudData(
   userId: string,
   email?: string,
   name?: string,
-  avatarUrl?: string
+  avatarUrl?: string,
+  forceRefresh: boolean = false
 ): Promise<CloudDataResponse | null> {
-  try {
-    const params = new URLSearchParams({ userId });
-    if (email) params.set('email', email);
-    if (name) params.set('name', name);
-    if (avatarUrl) params.set('avatar_url', avatarUrl);
+  const now = Date.now();
 
-    const res = await fetch(`/api/sync?${params.toString()}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!res.ok) {
-      console.warn('Gagal memuat data cloud pengguna:', await res.text());
-      return null;
-    }
-
-    const data: CloudDataResponse = await res.json();
-    return data;
-  } catch (err) {
-    console.warn('Pengecualian saat mengambil data cloud:', err);
-    return null;
+  // 1. Gunakan cache in-memory jika data masih hangat (< 10 detik) dan user sama
+  if (
+    !forceRefresh &&
+    cachedData &&
+    lastUserId === userId &&
+    now - lastPullTimestamp < CACHE_MAX_AGE_MS
+  ) {
+    return cachedData;
   }
+
+  // 2. Request deduplication: jika sudah ada fetch yang sedang berlangsung, pakai Promise yang sama
+  if (ongoingPullPromise && lastUserId === userId && !forceRefresh) {
+    return ongoingPullPromise;
+  }
+
+  lastUserId = userId;
+  ongoingPullPromise = (async () => {
+    try {
+      const params = new URLSearchParams({ userId });
+      if (email) params.set('email', email);
+      if (name) params.set('name', name);
+      if (avatarUrl) params.set('avatar_url', avatarUrl);
+
+      const res = await fetch(`/api/sync?${params.toString()}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!res.ok) {
+        console.warn('Gagal memuat data cloud pengguna:', await res.text());
+        return null;
+      }
+
+      const data: CloudDataResponse = await res.json();
+      if (data && data.success) {
+        cachedData = data;
+        lastPullTimestamp = Date.now();
+      }
+      return data;
+    } catch (err) {
+      console.warn('Pengecualian saat mengambil data cloud:', err);
+      return null;
+    } finally {
+      ongoingPullPromise = null;
+    }
+  })();
+
+  return ongoingPullPromise;
 }
 
 export interface MutationResponse {
@@ -96,6 +141,7 @@ export async function pushCloudMutation(
       return { success: false, error: errMsg };
     }
 
+    invalidateCloudCache();
     return { success: true, ...data };
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : `Pengecualian saat mutasi (${action})`;
