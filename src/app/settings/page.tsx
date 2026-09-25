@@ -6,7 +6,6 @@ import {
   Sun,
   Moon,
   Laptop,
-  Type,
   Check,
   User,
   Mail,
@@ -15,22 +14,28 @@ import {
   EyeOff,
   Coins,
   Clock,
-  Globe,
   ShieldCheck,
   AlertTriangle,
   RotateCcw,
-  Sparkles,
   LogOut,
   ExternalLink,
   Smartphone,
-  Download,
   Cloud,
   RefreshCw,
+  Sliders,
+  Database,
+  KeyRound,
+  Shield,
   CheckCircle2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useDompetKu } from '@/lib/store';
 import { FontSize } from '@/types';
+
+type SettingsTab = 'profile' | 'preferences' | 'security' | 'data';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -40,6 +45,8 @@ export default function SettingsPage() {
     resetToDemoData,
     logout,
     showToast,
+    theme: currentTheme,
+    setTheme,
     fontSize,
     setFontSize,
     isPrivacyMode,
@@ -48,18 +55,39 @@ export default function SettingsPage() {
     isSyncing,
   } = useDompetKu();
 
-  const isGoogleUser = user?.provider === 'google' || Boolean(user?.avatar_url?.includes('googleusercontent.com'));
+  const isGoogleUser =
+    user?.provider === 'google' ||
+    Boolean(user?.avatar_url?.includes('googleusercontent.com'));
 
-  // Profile Form (PRD Bagian 41)
+  // Active tab state
+  const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
+
+  // Profile Form state
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
 
-  // Preferences (PRD Bagian 42)
+  // Preferences Form state
   const [currency, setCurrency] = useState(user?.currency || 'IDR');
   const [timezone, setTimezone] = useState(user?.timezone || 'Asia/Jakarta');
-  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(user?.theme || 'system');
-  const [localFontSize, setLocalFontSize] = useState<FontSize>(fontSize || user?.fontSize || 'normal');
+  const [localTheme, setLocalTheme] = useState<'light' | 'dark' | 'system'>(
+    user?.theme || currentTheme || 'system'
+  );
+  const [localFontSize, setLocalFontSize] = useState<FontSize>(
+    fontSize || user?.fontSize || 'normal'
+  );
   const [isStandalone, setIsStandalone] = useState(false);
+
+  // Password Form state
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Dialog States
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+  const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -76,7 +104,7 @@ export default function SettingsPage() {
       setEmail(user.email);
       if (user.currency) setCurrency(user.currency);
       if (user.timezone) setTimezone(user.timezone);
-      if (user.theme) setTheme(user.theme);
+      if (user.theme) setLocalTheme(user.theme);
     }
   }, [user]);
 
@@ -86,20 +114,17 @@ export default function SettingsPage() {
     }
   }, [fontSize]);
 
+  const handleSelectTheme = (themeValue: 'light' | 'dark' | 'system') => {
+    setLocalTheme(themeValue);
+    setTheme(themeValue);
+    updateUser({ theme: themeValue });
+  };
+
   const handleSelectFontSize = (size: FontSize) => {
     setLocalFontSize(size);
     setFontSize(size);
+    updateUser({ fontSize: size });
   };
-
-  // Password state (PRD Bagian 43)
-  const [oldPassword, setOldPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmNewPassword, setConfirmNewPassword] = useState('');
-
-  // Password show/hide states
-  const [showOldPassword, setShowOldPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,8 +138,12 @@ export default function SettingsPage() {
 
   const handleSavePreferences = (e: React.FormEvent) => {
     e.preventDefault();
-    updateUser({ currency, timezone, theme, fontSize: localFontSize });
-    setFontSize(localFontSize);
+    updateUser({
+      currency,
+      timezone,
+      theme: localTheme,
+      fontSize: localFontSize,
+    });
     showToast('Preferensi sistem berhasil disimpan.', 'success');
   };
 
@@ -138,691 +167,639 @@ export default function SettingsPage() {
     showToast('Kata sandi berhasil diperbarui.', 'success');
   };
 
+  const handleConfirmReset = () => {
+    resetToDemoData();
+    setIsResetDialogOpen(false);
+  };
+
+  const handleConfirmLogout = async () => {
+    await logout();
+    setIsLogoutDialogOpen(false);
+    router.push('/login');
+  };
+
+  // Get user avatar initials
+  const initials = (name || user?.name || 'U')
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0].toUpperCase())
+    .join('');
+
   return (
     <div className="space-y-6 max-w-4xl">
-      {/* Filament Page Header */}
-      <div className="pb-2 border-b border-zinc-200/80 dark:border-zinc-800">
-        <h2 className="text-xl font-bold tracking-tight text-zinc-950 dark:text-white">
-          Pengaturan Sistem
-        </h2>
-        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-          Kelola profil pengguna, konfigurasi wilayah, preferensi tampilan, dan keamanan sandi.
-        </p>
-      </div>
-
-      {/* 1. KARTU PROFIL PENGGUNA */}
-      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 sm:p-7 shadow-xs ring-1 ring-zinc-950/5 dark:ring-white/5 space-y-5">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center shrink-0">
-            <User className="h-5 w-5" />
-          </div>
-          <div>
-            <h3 className="text-base font-bold tracking-tight text-zinc-950 dark:text-white">
-              Profil Pengguna
-            </h3>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              Informasi identitas akun pemilik buku kas DompetKu.
-            </p>
-          </div>
+      {/* Page Header */}
+      <div className="pb-4 border-b border-zinc-200/80 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold tracking-tight text-zinc-950 dark:text-white">
+            Pengaturan
+          </h2>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+            Kelola profil akun, preferensi antarmuka, keamanan, dan data sistem Anda.
+          </p>
         </div>
 
-        <form onSubmit={handleSaveProfile} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Nama Lengkap */}
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-200">
-                Nama Lengkap <span className="text-rose-500">*</span>
-              </label>
-              <div className="relative flex items-center">
-                <User className="absolute left-3 h-4 w-4 text-zinc-400 dark:text-zinc-500 pointer-events-none" />
-                <input
-                  type="text"
+        {/* Quick User Identity Pill */}
+        <div className="flex items-center gap-3 px-3 py-1.5 rounded-full border border-zinc-200/80 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xs self-start sm:self-auto">
+          <div className="h-6 w-6 rounded-full bg-gradient-to-tr from-amber-500 to-amber-400 flex items-center justify-center text-white text-[10px] font-bold shadow-xs">
+            {initials || 'U'}
+          </div>
+          <div className="text-left">
+            <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 leading-none">
+              {name || user?.name || 'Pengguna'}
+            </p>
+            <p className="text-[10px] text-zinc-400 dark:text-zinc-500 leading-none mt-0.5">
+              {user?.email || 'Tamu'}
+            </p>
+          </div>
+          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse ml-1" title="Sesi Aktif" />
+        </div>
+      </div>
+
+      {/* Navigation Tabs (Minimalist Segmented Control) */}
+      <div className="flex items-center gap-1.5 p-1 rounded-xl bg-zinc-100/90 dark:bg-zinc-800/60 border border-zinc-200/70 dark:border-zinc-700/60 overflow-x-auto scrollbar-none">
+        <button
+          type="button"
+          onClick={() => setActiveTab('profile')}
+          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === 'profile'
+              ? 'bg-white dark:bg-zinc-900 text-zinc-950 dark:text-white shadow-xs border border-zinc-200/50 dark:border-zinc-700/50'
+              : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
+          }`}
+        >
+          <User className="h-3.5 w-3.5" />
+          <span>Profil</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('preferences')}
+          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === 'preferences'
+              ? 'bg-white dark:bg-zinc-900 text-zinc-950 dark:text-white shadow-xs border border-zinc-200/50 dark:border-zinc-700/50'
+              : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
+          }`}
+        >
+          <Sliders className="h-3.5 w-3.5" />
+          <span>Tampilan & Preferensi</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('security')}
+          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === 'security'
+              ? 'bg-white dark:bg-zinc-900 text-zinc-950 dark:text-white shadow-xs border border-zinc-200/50 dark:border-zinc-700/50'
+              : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
+          }`}
+        >
+          <Shield className="h-3.5 w-3.5" />
+          <span>Keamanan</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('data')}
+          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === 'data'
+              ? 'bg-white dark:bg-zinc-900 text-zinc-950 dark:text-white shadow-xs border border-zinc-200/50 dark:border-zinc-700/50'
+              : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
+          }`}
+        >
+          <Database className="h-3.5 w-3.5" />
+          <span>Data & Sistem</span>
+        </button>
+      </div>
+
+      {/* TAB 1: PROFIL & AKUN */}
+      {activeTab === 'profile' && (
+        <div className="space-y-5 animate-in fade-in-50 duration-200">
+          <div className="rounded-2xl border border-zinc-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 sm:p-7 shadow-xs space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 pb-5 border-b border-zinc-100 dark:border-zinc-800/80">
+              <div className="h-14 w-14 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center text-lg font-bold shrink-0">
+                {initials || <User className="h-6 w-6" />}
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-bold text-zinc-950 dark:text-white">
+                    {name || 'Nama Pengguna'}
+                  </h3>
+                  {isGoogleUser ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Google Terverifikasi
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
+                      Akun Lokal
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  {email || 'Alamat email tidak terdaftar'}
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveProfile} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label="Nama Lengkap"
                   required
                   placeholder="Nama lengkap Anda"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 pl-9 pr-3.5 py-2 text-xs sm:text-sm bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 shadow-xs transition-colors"
+                  leadingIcon={<User className="h-4 w-4" />}
                 />
-              </div>
-            </div>
 
-            {/* Alamat Email */}
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-200">
-                Alamat Email <span className="text-rose-500">*</span>
-              </label>
-              <div className="relative flex items-center">
-                <Mail className="absolute left-3 h-4 w-4 text-zinc-400 dark:text-zinc-500 pointer-events-none" />
-                <input
+                <Input
+                  label="Alamat Email"
                   type="email"
                   required
                   placeholder="nama@email.com"
                   value={email}
+                  disabled={isGoogleUser}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 pl-9 pr-3.5 py-2 text-xs sm:text-sm bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 shadow-xs transition-colors"
+                  leadingIcon={<Mail className="h-4 w-4" />}
+                  helperText={
+                    isGoogleUser
+                      ? 'Email disinkronkan langsung dari akun Google Anda.'
+                      : undefined
+                  }
+                />
+              </div>
+
+              <div className="flex justify-end pt-4 border-t border-zinc-100 dark:border-zinc-800/80">
+                <Button type="submit" variant="primary" size="sm" className="shadow-xs font-semibold px-4">
+                  Simpan Profil
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: TAMPILAN & PREFERENSI */}
+      {activeTab === 'preferences' && (
+        <div className="space-y-5 animate-in fade-in-50 duration-200">
+          <form onSubmit={handleSavePreferences} className="space-y-5">
+            {/* Divided Settings Group Card */}
+            <div className="rounded-2xl border border-zinc-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xs divide-y divide-zinc-100 dark:divide-zinc-800/80 overflow-hidden">
+              {/* Row 1: Tema Antarmuka */}
+              <div className="p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-0.5">
+                  <h4 className="text-xs font-bold text-zinc-950 dark:text-white uppercase tracking-wider">
+                    Tema Tampilan
+                  </h4>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                    Pilih skema warna antarmuka yang paling nyaman untuk mata Anda.
+                  </p>
+                </div>
+
+                <div className="inline-flex p-1 rounded-xl bg-zinc-100 dark:bg-zinc-800/70 border border-zinc-200/60 dark:border-zinc-700/60 self-start sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => handleSelectTheme('light')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      localTheme === 'light'
+                        ? 'bg-white dark:bg-zinc-900 text-amber-600 dark:text-amber-400 shadow-xs border border-zinc-200/50 dark:border-zinc-700/50'
+                        : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
+                    }`}
+                  >
+                    <Sun className="h-3.5 w-3.5" />
+                    <span>Terang</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectTheme('dark')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      localTheme === 'dark'
+                        ? 'bg-white dark:bg-zinc-900 text-amber-600 dark:text-amber-400 shadow-xs border border-zinc-200/50 dark:border-zinc-700/50'
+                        : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
+                    }`}
+                  >
+                    <Moon className="h-3.5 w-3.5" />
+                    <span>Gelap</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectTheme('system')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      localTheme === 'system'
+                        ? 'bg-white dark:bg-zinc-900 text-amber-600 dark:text-amber-400 shadow-xs border border-zinc-200/50 dark:border-zinc-700/50'
+                        : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
+                    }`}
+                  >
+                    <Laptop className="h-3.5 w-3.5" />
+                    <span>Sistem</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Row 2: Skala Ukuran Huruf */}
+              <div className="p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-0.5">
+                  <h4 className="text-xs font-bold text-zinc-950 dark:text-white uppercase tracking-wider">
+                    Skala Ukuran Teks
+                  </h4>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                    Atur ukuran teks untuk keterbacaan optimal di seluruh formulir dan tabel.
+                  </p>
+                </div>
+
+                <div className="inline-flex p-1 rounded-xl bg-zinc-100 dark:bg-zinc-800/70 border border-zinc-200/60 dark:border-zinc-700/60 self-start sm:self-auto">
+                  {(
+                    [
+                      { id: 'sm', label: '14px', title: 'Kecil' },
+                      { id: 'normal', label: '16px', title: 'Normal' },
+                      { id: 'lg', label: '18px', title: 'Besar' },
+                      { id: 'xl', label: '20px', title: 'Ekstra' },
+                    ] as const
+                  ).map((size) => {
+                    const isSelected = localFontSize === size.id;
+                    return (
+                      <button
+                        key={size.id}
+                        type="button"
+                        onClick={() => handleSelectFontSize(size.id)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-white dark:bg-zinc-900 text-amber-600 dark:text-amber-400 shadow-xs border border-zinc-200/50 dark:border-zinc-700/50'
+                            : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
+                        }`}
+                        title={size.title}
+                      >
+                        <span>{size.title}</span>
+                        <span className="text-[10px] opacity-70 ml-1">({size.label})</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Row 3: Sensor Privasi */}
+              <div className="p-5 sm:p-6 flex items-center justify-between gap-4">
+                <div className="space-y-0.5 pr-4">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-xs font-bold text-zinc-950 dark:text-white uppercase tracking-wider">
+                      Sensor Angka Saldo
+                    </h4>
+                    {isPrivacyMode && (
+                      <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-bold">
+                        AKTIF
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                    Samarkan angka saldo dan nominal mutasi menjadi <code className="font-mono text-amber-600 dark:text-amber-400">Rp••••••••</code> saat membuka aplikasi di ruang umum.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={togglePrivacyMode}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    isPrivacyMode ? 'bg-amber-500' : 'bg-zinc-200 dark:bg-zinc-700'
+                  }`}
+                  role="switch"
+                  aria-checked={isPrivacyMode}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
+                      isPrivacyMode ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Row 4 & 5: Mata Uang & Zona Waktu */}
+              <div className="p-5 sm:p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Select
+                  label="Mata Uang Utama"
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  leadingIcon={<Coins className="h-4 w-4" />}
+                  options={[{ label: 'Rupiah Indonesia (IDR)', value: 'IDR' }]}
+                />
+
+                <Select
+                  label="Zona Waktu"
+                  value={timezone}
+                  onChange={(e) => setTimezone(e.target.value)}
+                  leadingIcon={<Clock className="h-4 w-4" />}
+                  options={[
+                    { label: 'WIB — Waktu Indonesia Barat (Asia/Jakarta)', value: 'Asia/Jakarta' },
+                    { label: 'WITA — Waktu Indonesia Tengah (Asia/Makassar)', value: 'Asia/Makassar' },
+                    { label: 'WIT — Waktu Indonesia Timur (Asia/Jayapura)', value: 'Asia/Jayapura' },
+                  ]}
                 />
               </div>
             </div>
-          </div>
 
-          <div className="flex justify-end pt-3 border-t border-zinc-100 dark:border-zinc-800/80">
-            <Button type="submit" variant="primary" className="h-9.5 px-4 font-semibold shadow-xs">
-              Simpan Profil
-            </Button>
-          </div>
-        </form>
-      </div>
-
-      {/* 2. KARTU PREFERENSI TAMPILAN & WILAYAH */}
-      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 sm:p-7 shadow-xs ring-1 ring-zinc-950/5 dark:ring-white/5 space-y-5">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center shrink-0">
-            <Globe className="h-5 w-5" />
-          </div>
-          <div>
-            <h3 className="text-base font-bold tracking-tight text-zinc-950 dark:text-white">
-              Preferensi Tampilan & Wilayah
-            </h3>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              Format mata uang, zona waktu, tema antarmuka, dan skala ukuran huruf.
-            </p>
-          </div>
+            <div className="flex justify-end">
+              <Button type="submit" variant="primary" size="sm" className="shadow-xs font-semibold px-4">
+                Simpan Preferensi
+              </Button>
+            </div>
+          </form>
         </div>
+      )}
 
-        <form onSubmit={handleSavePreferences} className="space-y-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Mata Uang */}
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-200">
-                Mata Uang Utama
-              </label>
-              <div className="relative flex items-center">
-                <Coins className="absolute left-3 h-4 w-4 text-zinc-400 dark:text-zinc-500 pointer-events-none" />
-                <select
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 pl-9 pr-8 py-2 text-xs sm:text-sm bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 shadow-xs transition-colors cursor-pointer"
+      {/* TAB 3: KEAMANAN */}
+      {activeTab === 'security' && (
+        <div className="space-y-5 animate-in fade-in-50 duration-200">
+          {isGoogleUser ? (
+            <div className="rounded-2xl border border-zinc-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 sm:p-7 shadow-xs space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="h-11 w-11 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center shrink-0 shadow-xs">
+                    <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        fill="#4285F4"
+                        d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"
+                      />
+                      <path
+                        fill="#34A853"
+                        d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"
+                      />
+                      <path
+                        fill="#FBBC05"
+                        d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.14-1.55.38-2.27V6.58H1.25C.45 8.18 0 10.03 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
+                      />
+                      <path
+                        fill="#EA4335"
+                        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-sm font-bold text-zinc-950 dark:text-white">
+                        Otentikasi Akun Google
+                      </h4>
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                        <ShieldCheck className="h-3 w-3" />
+                        Terlindungi 2FA
+                      </span>
+                    </div>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                      Tersambung ke surel: <strong className="text-zinc-800 dark:text-zinc-200">{user?.email}</strong>
+                    </p>
+                  </div>
+                </div>
+
+                <a
+                  href="https://myaccount.google.com/security"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-750 shadow-xs transition-colors shrink-0"
                 >
-                  <option value="IDR">Rupiah Indonesia (IDR)</option>
-                </select>
+                  <span>Buka Keamanan Google</span>
+                  <ExternalLink className="h-3.5 w-3.5 text-zinc-400" />
+                </a>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200/60 dark:border-zinc-800 text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                Anda masuk melalui Single Sign-On (SSO) Google. Seluruh autentikasi, kata sandi, verifikasi 2-langkah, dan passkey dikelola secara aman langsung melalui server Google.
               </div>
             </div>
-
-            {/* Zona Waktu */}
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-200">
-                Zona Waktu
-              </label>
-              <div className="relative flex items-center">
-                <Clock className="absolute left-3 h-4 w-4 text-zinc-400 dark:text-zinc-500 pointer-events-none" />
-                <select
-                  value={timezone}
-                  onChange={(e) => setTimezone(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 pl-9 pr-8 py-2 text-xs sm:text-sm bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 shadow-xs transition-colors cursor-pointer"
-                >
-                  <option value="Asia/Jakarta">WIB (Asia/Jakarta)</option>
-                  <option value="Asia/Makassar">WITA (Asia/Makassar)</option>
-                  <option value="Asia/Jayapura">WIT (Asia/Jayapura)</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Mode Privasi / Sensor Saldo */}
-          <div className="flex items-center justify-between p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/50">
-            <div className="space-y-0.5 pr-4">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                  Mode Privasi (Sensor Saldo)
-                </span>
-                {isPrivacyMode && (
-                  <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-bold">
-                    AKTIF
-                  </span>
-                )}
-              </div>
-              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                Samarkan angka saldo dan mutasi menjadi <code className="font-mono text-amber-600 dark:text-amber-400">Rp••••••••</code> untuk kenyamanan saat membuka aplikasi di tempat umum.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={togglePrivacyMode}
-              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                isPrivacyMode ? 'bg-amber-500' : 'bg-zinc-300 dark:bg-zinc-700'
-              }`}
-              role="switch"
-              aria-checked={isPrivacyMode}
-            >
-              <span
-                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-                  isPrivacyMode ? 'translate-x-5' : 'translate-x-0'
-                }`}
-              />
-            </button>
-          </div>
-
-          {/* Tema Antarmuka */}
-          <div className="space-y-2">
-            <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-200">
-              Tema Antarmuka
-            </label>
-            <div className="grid grid-cols-3 gap-2.5 max-w-md">
-              <button
-                type="button"
-                onClick={() => setTheme('light')}
-                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
-                  theme === 'light'
-                    ? 'border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-400 ring-2 ring-amber-500/20 shadow-xs'
-                    : 'border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'
-                }`}
-              >
-                <Sun className="h-3.5 w-3.5" />
-                <span>Terang</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setTheme('dark')}
-                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
-                  theme === 'dark'
-                    ? 'border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-400 ring-2 ring-amber-500/20 shadow-xs'
-                    : 'border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'
-                }`}
-              >
-                <Moon className="h-3.5 w-3.5" />
-                <span>Gelap</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setTheme('system')}
-                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
-                  theme === 'system'
-                    ? 'border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-400 ring-2 ring-amber-500/20 shadow-xs'
-                    : 'border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'
-                }`}
-              >
-                <Laptop className="h-3.5 w-3.5" />
-                <span>Sistem</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Ukuran Font & Teks Formulir */}
-          <div className="space-y-3 pt-3 border-t border-zinc-200/80 dark:border-zinc-800">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-              <div>
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-200">
-                  Ukuran Huruf / Font Antarmuka & Formulir
-                </label>
-                <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                  Sesuaikan skala ukuran teks pada input formulir, label, tombol, dan seluruh aplikasi.
+          ) : (
+            <div className="rounded-2xl border border-zinc-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 sm:p-7 shadow-xs space-y-6">
+              <div className="space-y-1 pb-4 border-b border-zinc-100 dark:border-zinc-800/80">
+                <h3 className="text-base font-bold text-zinc-950 dark:text-white flex items-center gap-2">
+                  <KeyRound className="h-4 w-4 text-amber-500" />
+                  <span>Ubah Kata Sandi</span>
+                </h3>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  Perbarui kata sandi akun lokal Anda secara berkala untuk menjaga keamanan data finansial.
                 </p>
               </div>
-              <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 self-start sm:self-auto">
-                Aktif:{' '}
-                <strong className="text-amber-600 dark:text-amber-400">
-                  {localFontSize === 'sm'
-                    ? 'Kecil (14px)'
-                    : localFontSize === 'normal'
-                    ? 'Normal (16px)'
-                    : localFontSize === 'lg'
-                    ? 'Besar (18px)'
-                    : 'Sangat Besar (20px)'}
-                </strong>
-              </span>
-            </div>
 
-            {/* Grid 4 Opsi Ukuran */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-              {[
-                {
-                  id: 'sm' as FontSize,
-                  label: 'Kecil',
-                  sizeText: '14px',
-                  desc: 'Ringkas & padat',
-                  sampleClass: 'text-xs',
-                },
-                {
-                  id: 'normal' as FontSize,
-                  label: 'Normal',
-                  sizeText: '16px (Bawaan)',
-                  desc: 'Standar rekomendasi',
-                  sampleClass: 'text-sm',
-                },
-                {
-                  id: 'lg' as FontSize,
-                  label: 'Besar',
-                  sizeText: '18px',
-                  desc: 'Nyaman dibaca',
-                  sampleClass: 'text-base',
-                },
-                {
-                  id: 'xl' as FontSize,
-                  label: 'Sangat Besar',
-                  sizeText: '20px',
-                  desc: 'Keterbacaan tinggi',
-                  sampleClass: 'text-lg font-semibold',
-                },
-              ].map((item) => {
-                const isSelected = localFontSize === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => handleSelectFontSize(item.id)}
-                    className={`relative flex flex-col items-start p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                      isSelected
-                        ? 'border-amber-500 bg-amber-500/10 dark:bg-amber-500/15 ring-2 ring-amber-500/20 shadow-xs'
-                        : 'border-zinc-300 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-600 bg-white dark:bg-zinc-950'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between w-full mb-1">
-                      <span
-                        className={`inline-flex items-center justify-center font-serif leading-none ${item.sampleClass} ${
-                          isSelected
-                            ? 'text-amber-600 dark:text-amber-400 font-bold'
-                            : 'text-zinc-700 dark:text-zinc-300'
-                        }`}
-                      >
-                        A
-                      </span>
-                      {isSelected && (
-                        <span className="flex items-center justify-center h-4 w-4 rounded-full bg-amber-500 text-white">
-                          <Check className="h-2.5 w-2.5" />
-                        </span>
-                      )}
-                    </div>
-                    <span
-                      className={`text-xs font-bold ${
-                        isSelected
-                          ? 'text-amber-700 dark:text-amber-400'
-                          : 'text-zinc-900 dark:text-zinc-100'
-                      }`}
-                    >
-                      {item.label}
-                    </span>
-                    <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium mt-0.5">
-                      {item.sizeText}
-                    </span>
-                    <span className="text-[9px] text-zinc-400 dark:text-zinc-500 mt-0.5">
-                      {item.desc}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Pratinjau Interaktif Langsung */}
-            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-950/50 p-3.5 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-800 dark:text-zinc-200">
-                  <Type className="h-3.5 w-3.5 text-amber-500" />
-                  <span>Pratinjau Langsung Formulir</span>
-                </div>
-                <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono">
-                  Skala: {localFontSize.toUpperCase()}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-200">
-                    Nama Lengkap
-                  </label>
-                  <div className="relative flex items-center">
-                    <User className="absolute left-3 h-4 w-4 text-zinc-400 dark:text-zinc-500 pointer-events-none" />
-                    <input
-                      type="text"
-                      readOnly
-                      value={name || 'Budi Santoso'}
-                      className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 pl-9 pr-3.5 py-1.5 sm:py-2 text-xs sm:text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100"
-                    />
-                  </div>
-                  <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                    Contoh teks nama lengkap sesuai formulir
-                  </p>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-200">
-                    Alamat Email
-                  </label>
-                  <div className="relative flex items-center">
-                    <Mail className="absolute left-3 h-4 w-4 text-zinc-400 dark:text-zinc-500 pointer-events-none" />
-                    <input
-                      type="email"
-                      readOnly
-                      value={email || 'budi.santoso@example.com'}
-                      className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 pl-9 pr-3.5 py-1.5 sm:py-2 text-xs sm:text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100"
-                    />
-                  </div>
-                  <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                    Contoh teks alamat surel sesuai formulir
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-end pt-3 border-t border-zinc-100 dark:border-zinc-800/80">
-            <Button type="submit" variant="primary" className="h-9.5 px-4 font-semibold shadow-xs">
-              Simpan Preferensi
-            </Button>
-          </div>
-        </form>
-      </div>
-
-      {/* 3. KARTU KEAMANAN KATA SANDI */}
-      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 sm:p-7 shadow-xs ring-1 ring-zinc-950/5 dark:ring-white/5 space-y-5">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center shrink-0">
-            <Lock className="h-5 w-5" />
-          </div>
-          <div>
-            <h3 className="text-base font-bold tracking-tight text-zinc-950 dark:text-white">
-              Keamanan Kata Sandi
-            </h3>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              Perbarui kata sandi akun DompetKu Anda untuk proteksi maksimal.
-            </p>
-          </div>
-        </div>
-
-        {isGoogleUser ? (
-          <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.04] dark:bg-emerald-500/10 p-4 sm:p-5 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center shrink-0 shadow-xs">
-                  <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
-                    <path
-                      fill="#4285F4"
-                      d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"
-                    />
-                    <path
-                      fill="#34A853"
-                      d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"
-                    />
-                    <path
-                      fill="#FBBC05"
-                      d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.14-1.55.38-2.27V6.58H1.25C.45 8.18 0 10.03 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
-                    />
-                    <path
-                      fill="#EA4335"
-                      d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
-                    />
-                  </svg>
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-sm font-bold text-zinc-950 dark:text-white">
-                      Otentikasi Akun Google Aktif
-                    </h4>
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                      <ShieldCheck className="h-3 w-3" />
-                      Terlindungi 2FA
-                    </span>
-                  </div>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                    Tersinkronisasi dengan email Google: <strong className="text-zinc-800 dark:text-zinc-200">{user?.email}</strong>
-                  </p>
-                </div>
-              </div>
-
-              <a
-                href="https://myaccount.google.com/security"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700/80 shadow-xs transition-colors shrink-0"
-              >
-                <span>Kelola di Akun Google</span>
-                <ExternalLink className="h-3.5 w-3.5 text-zinc-400" />
-              </a>
-            </div>
-
-            <div className="p-3 rounded-lg bg-zinc-100/70 dark:bg-zinc-800/50 text-[11px] text-zinc-600 dark:text-zinc-400 leading-relaxed border border-zinc-200/50 dark:border-zinc-700/50">
-              💡 <strong>Keamanan Terpusat:</strong> Anda masuk tanpa kata sandi lokal di DompetKu. Seluruh perlindungan login, kata sandi utama, verifikasi 2 langkah (2FA), serta kunci sandi (Passkey) dikelola langsung secara aman oleh server Google.
-            </div>
-          </div>
-        ) : (
-          <form onSubmit={handleChangePassword} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-              {/* Kata Sandi Saat Ini */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-200">
-                  Kata Sandi Saat Ini <span className="text-rose-500">*</span>
-                </label>
-                <div className="relative flex items-center">
-                  <Lock className="absolute left-3 h-4 w-4 text-zinc-400 dark:text-zinc-500 pointer-events-none" />
-                  <input
+              <form onSubmit={handleChangePassword} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <Input
+                    label="Kata Sandi Saat Ini"
                     type={showOldPassword ? 'text' : 'password'}
                     required
                     placeholder="••••••••"
                     value={oldPassword}
                     onChange={(e) => setOldPassword(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 pl-9 pr-9 py-2 text-xs sm:text-sm bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 shadow-xs transition-colors"
+                    leadingIcon={<Lock className="h-4 w-4" />}
+                    trailingAction={
+                      <button
+                        type="button"
+                        onClick={() => setShowOldPassword(!showOldPassword)}
+                        aria-label={showOldPassword ? 'Sembunyikan sandi' : 'Tampilkan sandi'}
+                        className="cursor-pointer p-0.5"
+                      >
+                        {showOldPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      </button>
+                    }
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowOldPassword(!showOldPassword)}
-                    aria-label={showOldPassword ? 'Sembunyikan sandi' : 'Tampilkan sandi'}
-                    className="absolute right-2.5 p-0.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 cursor-pointer"
-                  >
-                    {showOldPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                  </button>
-                </div>
-              </div>
 
-              {/* Kata Sandi Baru */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-200">
-                  Kata Sandi Baru <span className="text-rose-500">*</span>
-                </label>
-                <div className="relative flex items-center">
-                  <Lock className="absolute left-3 h-4 w-4 text-zinc-400 dark:text-zinc-500 pointer-events-none" />
-                  <input
+                  <Input
+                    label="Kata Sandi Baru"
                     type={showNewPassword ? 'text' : 'password'}
                     required
                     placeholder="Min. 8 karakter"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 pl-9 pr-9 py-2 text-xs sm:text-sm bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 shadow-xs transition-colors"
+                    leadingIcon={<Lock className="h-4 w-4" />}
+                    trailingAction={
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        aria-label={showNewPassword ? 'Sembunyikan sandi' : 'Tampilkan sandi'}
+                        className="cursor-pointer p-0.5"
+                      >
+                        {showNewPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      </button>
+                    }
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowNewPassword(!showNewPassword)}
-                    aria-label={showNewPassword ? 'Sembunyikan sandi' : 'Tampilkan sandi'}
-                    className="absolute right-2.5 p-0.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 cursor-pointer"
-                  >
-                    {showNewPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                  </button>
-                </div>
-              </div>
 
-              {/* Ulangi Kata Sandi Baru */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-200">
-                  Ulangi Kata Sandi Baru <span className="text-rose-500">*</span>
-                </label>
-                <div className="relative flex items-center">
-                  <Lock className="absolute left-3 h-4 w-4 text-zinc-400 dark:text-zinc-500 pointer-events-none" />
-                  <input
+                  <Input
+                    label="Konfirmasi Sandi Baru"
                     type={showConfirmPassword ? 'text' : 'password'}
                     required
-                    placeholder="Ulangi kata sandi baru"
+                    placeholder="Ulangi kata sandi"
                     value={confirmNewPassword}
                     onChange={(e) => setConfirmNewPassword(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 pl-9 pr-9 py-2 text-xs sm:text-sm bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 shadow-xs transition-colors"
+                    leadingIcon={<Lock className="h-4 w-4" />}
+                    trailingAction={
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        aria-label={showConfirmPassword ? 'Sembunyikan sandi' : 'Tampilkan sandi'}
+                        className="cursor-pointer p-0.5"
+                      >
+                        {showConfirmPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      </button>
+                    }
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    aria-label={showConfirmPassword ? 'Sembunyikan sandi' : 'Tampilkan sandi'}
-                    className="absolute right-2.5 p-0.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 cursor-pointer"
-                  >
-                    {showConfirmPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                  </button>
                 </div>
+
+                <div className="flex justify-end pt-3 border-t border-zinc-100 dark:border-zinc-800/80">
+                  <Button type="submit" variant="secondary" size="sm" className="shadow-xs font-semibold px-4">
+                    Ubah Kata Sandi
+                  </Button>
+                </div>
+              </form>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 4: DATA & SISTEM */}
+      {activeTab === 'data' && (
+        <div className="space-y-5 animate-in fade-in-50 duration-200">
+          {/* Cloud Database Sync Card */}
+          <div className="rounded-2xl border border-zinc-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="h-10 w-10 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center justify-center shrink-0">
+                <Cloud className="h-5 w-5" />
               </div>
-            </div>
-
-            <div className="flex justify-end pt-3 border-t border-zinc-100 dark:border-zinc-800/80">
-              <Button type="submit" variant="secondary" className="h-9.5 px-4 font-semibold shadow-xs">
-                Ubah Kata Sandi
-              </Button>
-            </div>
-          </form>
-        )}
-      </div>
-
-      {/* 4. KARTU APLIKASI WEB PROGRESIF (PWA) */}
-      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 sm:p-7 shadow-xs ring-1 ring-zinc-950/5 dark:ring-white/5 space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center shrink-0">
-              <Smartphone className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold tracking-tight text-zinc-950 dark:text-white">
-                  Aplikasi Web Progresif (PWA)
-                </h3>
-                {isStandalone ? (
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-semibold">
-                    Terpasang di Perangkat
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-bold text-zinc-950 dark:text-white">
+                    Sinkronisasi Cloud Supabase
+                  </h4>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                    <CheckCircle2 className="h-3 w-3" />
+                    Tersambung
                   </span>
-                ) : (
-                  <span className="px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-semibold">
-                    Dapat Dipasang
-                  </span>
-                )}
+                </div>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  Cadangkan mutasi transaksi lokal, rekening, dan kategori ke database PostgreSQL cloud.
+                </p>
               </div>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                Pasang DompetKu langsung ke layar utama ponsel atau desktop untuk akses cepat dan dukungan mode offline.
-              </p>
             </div>
+
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={isSyncing}
+              className="shadow-xs font-semibold px-4 shrink-0 self-start sm:self-auto"
+              onClick={() => syncToCloud()}
+            >
+              <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${isSyncing ? 'animate-spin' : ''}`} />
+              <span>{isSyncing ? 'Menyinkronkan...' : 'Sinkronkan Sekarang'}</span>
+            </Button>
           </div>
-        </div>
 
-        <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800 text-xs text-zinc-600 dark:text-zinc-300 space-y-2">
-          <p className="font-semibold text-zinc-900 dark:text-zinc-100 text-[11px]">
-            Cara Memasang ke Layar Utama:
-          </p>
-          <ul className="list-disc pl-5 space-y-1 text-[11px] text-zinc-500 dark:text-zinc-400">
-            <li>
-              <strong>Android (Chrome):</strong> Tekan ikon menu titik tiga (⋮) di pojok kanan atas, lalu pilih <em>"Tambahkan ke Layar Utama"</em> atau <em>"Pasang Aplikasi"</em>.
-            </li>
-            <li>
-              <strong>iOS / iPhone (Safari):</strong> Tekan tombol Bagikan (Share <span className="font-mono">⎋</span>) di bilah bawah, gulir ke bawah lalu pilih <em>"Tambah ke Layar Utama"</em>.
-            </li>
-            <li>
-              <strong>PC / Desktop (Chrome / Edge):</strong> Klik ikon pasang aplikasi di sebelah kanan bilah alamat (URL bar).
-            </li>
-          </ul>
-        </div>
-      </div>
-
-      {/* 5. KARTU SINKRONISASI CLOUD DATABASE */}
-      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 sm:p-7 shadow-xs ring-1 ring-zinc-950/5 dark:ring-white/5 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center justify-center shrink-0">
-              <Cloud className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold tracking-tight text-zinc-950 dark:text-white">
-                  Sinkronisasi Database Cloud
-                </h3>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-semibold flex items-center gap-1">
-                  <CheckCircle2 className="h-3 w-3" />
-                  <span>Supabase PostgreSQL Aktif</span>
-                </span>
+          {/* Progressive Web App Status Card */}
+          <div className="rounded-2xl border border-zinc-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="h-10 w-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center shrink-0">
+                <Smartphone className="h-5 w-5" />
               </div>
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-bold text-zinc-950 dark:text-white">
+                    Aplikasi Web Progresif (PWA)
+                  </h4>
+                  {isStandalone ? (
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-semibold">
+                      Terpasang di Perangkat
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-semibold">
+                      Siap Dipasang
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  {isStandalone
+                    ? 'Aplikasi berjalan dalam mode mandiri dengan dukungan penuh tanpa koneksi internet.'
+                    : 'Pasang ke layar utama perangkat melalui menu peramban untuk akses cepat dan luring.'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Destructive Zone (Clean, Minimalist Danger Section) */}
+          <div className="rounded-2xl border border-rose-200/80 dark:border-rose-900/40 bg-rose-50/20 dark:bg-rose-950/10 p-5 sm:p-6 space-y-4">
+            <div className="space-y-0.5">
+              <h4 className="text-xs font-bold text-rose-700 dark:text-rose-400 uppercase tracking-wider flex items-center gap-1.5">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                <span>Zona Tindakan Kritis</span>
+              </h4>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                Pastikan seluruh rekening, mutasi transaksi, dan pagu anggaran lokal Anda tersimpan aman di database cloud.
+                Tindakan di bawah ini memengaruhi data transaksi tersimpan dan sesi pengguna saat ini.
               </p>
             </div>
-          </div>
 
-          <Button
-            type="button"
-            variant="primary"
-            disabled={isSyncing}
-            className="h-9.5 px-4 font-semibold shadow-xs self-start sm:self-auto cursor-pointer"
-            onClick={() => syncToCloud()}
-          >
-            <RefreshCw className={`h-3.5 w-3.5 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-            <span>{isSyncing ? 'Menyinkronkan...' : 'Sinkronkan Sekarang'}</span>
-          </Button>
-        </div>
-      </div>
+            <div className="divide-y divide-rose-100 dark:divide-rose-900/30 pt-1">
+              {/* Row 1: Reset Financial Data */}
+              <div className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                    Bersihkan Seluruh Riwayat Transaksi
+                  </p>
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                    Mengosongkan mutasi transaksi, rekening, dan target tabungan lokal.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="danger"
+                  size="sm"
+                  className="shadow-xs self-start sm:self-auto shrink-0"
+                  onClick={() => setIsResetDialogOpen(true)}
+                >
+                  <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+                  <span>Bersihkan Data</span>
+                </Button>
+              </div>
 
-      {/* 6. KARTU ATUR ULANG DATA FINANSIAL */}
-      <div className="rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/20 dark:bg-rose-950/15 p-6 sm:p-7 shadow-xs ring-1 ring-rose-950/5 dark:ring-white/5 space-y-4">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 flex items-center justify-center shrink-0">
-            <AlertTriangle className="h-5 w-5" />
-          </div>
-          <div>
-            <h3 className="text-base font-bold tracking-tight text-rose-700 dark:text-rose-400">
-              Atur Ulang Data Finansial
-            </h3>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              Kosongkan seluruh riwayat mutasi transaksi, pagu anggaran, dan target tabungan Anda ke kondisi bersih.
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-rose-100 dark:border-rose-900/30">
-          <span className="text-xs text-zinc-500 dark:text-zinc-400">
-            ⚠️ Tindakan ini akan menghapus mutasi transaksi lokal di peramban ini.
-          </span>
-          <Button
-            variant="danger"
-            className="h-9 px-4 text-xs font-semibold shadow-xs self-start sm:self-auto"
-            onClick={() => {
-              if (window.confirm('Hapus seluruh riwayat transaksi, anggaran, dan target tabungan Anda?')) {
-                resetToDemoData();
-              }
-            }}
-          >
-            <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
-            <span>Bersihkan Data Finansial</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* 5. KARTU KELUAR DARI AKUN */}
-      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 sm:p-7 shadow-xs ring-1 ring-zinc-950/5 dark:ring-white/5 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center shrink-0">
-              <LogOut className="h-5 w-5 text-rose-500" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold tracking-tight text-zinc-950 dark:text-white">
-                Sesi Akun Pengguna
-              </h3>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                Keluar dari sesi akun saat ini ({user?.email || 'Belum masuk'}).
-              </p>
+              {/* Row 2: Logout */}
+              <div className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                    Keluar Sesi Akun
+                  </p>
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                    Akhiri sesi masuk DompetKu pada peramban ini.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shadow-xs hover:border-rose-300 dark:hover:border-rose-800 hover:text-rose-600 dark:hover:text-rose-400 self-start sm:self-auto shrink-0"
+                  onClick={() => setIsLogoutDialogOpen(true)}
+                >
+                  <LogOut className="h-3.5 w-3.5 mr-1.5" />
+                  <span>Keluar dari Akun</span>
+                </Button>
+              </div>
             </div>
           </div>
-          <Button
-            variant="danger"
-            className="h-9 px-4 text-xs font-semibold shadow-xs self-start sm:self-auto"
-            onClick={async () => {
-              if (window.confirm('Apakah Anda yakin ingin keluar dari akun DompetKu?')) {
-                await logout();
-                router.push('/login');
-              }
-            }}
-          >
-            <LogOut className="h-3.5 w-3.5 mr-1.5" />
-            <span>Keluar dari Akun</span>
-          </Button>
         </div>
-      </div>
+      )}
+
+      {/* Confirmation Dialogs */}
+      <ConfirmDialog
+        isOpen={isResetDialogOpen}
+        onClose={() => setIsResetDialogOpen(false)}
+        onConfirm={handleConfirmReset}
+        title="Bersihkan Data Finansial"
+        description="Apakah Anda yakin ingin menghapus seluruh riwayat transaksi, anggaran, dan target tabungan? Tindakan ini akan mengosongkan data lokal Anda pada peramban ini."
+        confirmText="Ya, Bersihkan Data"
+        cancelText="Batal"
+        variant="danger"
+      />
+
+      <ConfirmDialog
+        isOpen={isLogoutDialogOpen}
+        onClose={() => setIsLogoutDialogOpen(false)}
+        onConfirm={handleConfirmLogout}
+        title="Keluar dari Akun"
+        description={`Apakah Anda yakin ingin keluar dari sesi akun ${user?.email || 'DompetKu'}? Anda dapat masuk kembali kapan saja.`}
+        confirmText="Keluar"
+        cancelText="Batal"
+        variant="danger"
+      />
     </div>
   );
 }

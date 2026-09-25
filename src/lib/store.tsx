@@ -15,6 +15,7 @@ import { formatRupiah } from './utils/formatters';
 import { supabase, isSupabaseConfigured } from './supabase/client';
 import { signOutSupabase } from './supabase/auth';
 import { pullUserCloudData, pushCloudMutation, batchSyncLocalData } from './supabase/sync';
+import { getFriendlyErrorDetails } from './utils/error-handler';
 
 function generateId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -27,10 +28,11 @@ function generateId(): string {
   });
 }
 
-interface ToastItem {
+export interface ToastItem {
   id: string;
   message: string;
   type: 'success' | 'error' | 'info';
+  title?: string;
 }
 
 interface DompetKuContextType {
@@ -128,7 +130,7 @@ interface DompetKuContextType {
 
   // Toast
   toasts: ToastItem[];
-  showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+  showToast: (message: string, type?: 'success' | 'error' | 'info', title?: string) => void;
   removeToast: (id: string) => void;
 }
 
@@ -241,13 +243,24 @@ export function DompetKuProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
-    const id = Math.random().toString(36).substring(2, 9);
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 4000);
-  }, []);
+  const showToast = useCallback(
+    (message: string, type: 'success' | 'error' | 'info' = 'success', title?: string) => {
+      const id = Math.random().toString(36).substring(2, 9);
+      let finalMessage = message;
+      let finalTitle = title;
+      if (type === 'error') {
+        const details = getFriendlyErrorDetails(message);
+        finalMessage = details.message;
+        finalTitle = title || details.title;
+      }
+      setToasts((prev) => [...prev, { id, message: finalMessage, type, title: finalTitle }]);
+      const timeoutMs = type === 'error' ? 5000 : 3500;
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+      }, timeoutMs);
+    },
+    []
+  );
 
   const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));

@@ -19,6 +19,7 @@ import { useDompetKu } from '@/lib/store';
 import { signInWithGoogle, loginUserWithEmail } from '@/lib/supabase/auth';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
 import { SupabaseConfigModal } from '@/components/auth/supabase-config-modal';
+import { formatUserFriendlyError } from '@/lib/utils/error-handler';
 
 function GoogleIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (
@@ -86,8 +87,9 @@ export default function LoginPage() {
 
       if (error) {
         setIsLoading(false);
-        setErrors({ form: error.message });
-        showToast(error.message, 'error');
+        const friendly = formatUserFriendlyError(error.message, 'Email atau kata sandi tidak valid.');
+        setErrors({ form: friendly });
+        showToast(friendly, 'error');
         return;
       }
 
@@ -99,9 +101,9 @@ export default function LoginPage() {
       }
     } catch (err) {
       setIsLoading(false);
-      const msg = err instanceof Error ? err.message : 'Terjadi kesalahan saat masuk.';
-      setErrors({ form: msg });
-      showToast(msg, 'error');
+      const friendly = formatUserFriendlyError(err, 'Terjadi kesalahan saat masuk.');
+      setErrors({ form: friendly });
+      showToast(friendly, 'error');
     }
   };
 
@@ -115,7 +117,8 @@ export default function LoginPage() {
     const { error } = await signInWithGoogle();
     if (error) {
       setIsGoogleLoading(false);
-      showToast(error.message, 'error');
+      const friendly = formatUserFriendlyError(error.message, 'Gagal menghubungkan ke akun Google.');
+      showToast(friendly, 'error');
     }
   };
 

@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { prisma } from '@/lib/prisma';
 import type { Account } from '@prisma/client';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase/client';
+import { formatUserFriendlyError } from '@/lib/utils/error-handler';
 
 export async function POST(request: Request) {
   try {
@@ -199,7 +200,10 @@ export async function POST(request: Request) {
     });
   } catch (error: unknown) {
     console.error('Error during user registration:', error);
-    const msg = error instanceof Error ? error.message : 'Terjadi kesalahan pada server saat pendaftaran.';
-    return NextResponse.json({ error: msg }, { status: 500 });
+    const friendlyMsg = formatUserFriendlyError(
+      error,
+      'Terjadi kesalahan pada server saat pendaftaran akun. Silakan coba kembali.'
+    );
+    return NextResponse.json({ error: friendlyMsg }, { status: 500 });
   }
 }

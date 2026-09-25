@@ -1,14 +1,14 @@
 import type { Metadata, Viewport } from 'next';
-import { Plus_Jakarta_Sans } from 'next/font/google';
+import localFont from 'next/font/local';
 import './globals.css';
 import { DompetKuProvider } from '@/lib/store';
 import { AppShell } from '@/components/layout/app-shell';
 import { PwaRegister } from '@/components/pwa/pwa-register';
 
-const plusJakartaSans = Plus_Jakarta_Sans({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800'],
+const plusJakartaSans = localFont({
+  src: './fonts/PlusJakartaSans-Variable.woff2',
   variable: '--font-sans',
+  display: 'swap',
 });
 
 export const metadata: Metadata = {

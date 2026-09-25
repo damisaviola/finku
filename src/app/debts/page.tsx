@@ -23,6 +23,8 @@ import {
   Scale,
   X,
   History,
+  Filter,
+  MoreHorizontal,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,6 +33,13 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ProgressBar } from '@/components/ui/progress';
+import {
+  DropdownSelect,
+  DropdownMenu,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from '@/components/ui/dropdown';
 import { useDompetKu } from '@/lib/store';
 import { Debt, DebtType, DebtStatus } from '@/types';
 import { formatRupiah, formatTanggal, cn } from '@/lib/utils/formatters';
@@ -361,17 +370,43 @@ export default function DebtsPage() {
               </button>
             </div>
 
-            {/* Status Select Filter */}
-            <div className="w-full sm:w-52">
-              <Select
+            {/* Status Dropdown Filter (Modern Custom Dropdown) */}
+            <div className="w-full sm:w-64">
+              <DropdownSelect
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(val) => setStatusFilter(val)}
+                leadingIcon={<Filter className="h-3.5 w-3.5" />}
                 options={[
-                  { label: 'Semua Status Tagihan', value: 'all' },
-                  { label: 'Belum Lunas', value: 'unpaid' },
-                  { label: 'Dicicil Sebagian', value: 'partial' },
-                  { label: 'Sudah Lunas', value: 'paid' },
-                  { label: 'Lewat Jatuh Tempo', value: 'overdue' },
+                  {
+                    value: 'all',
+                    label: 'Semua Status Tagihan',
+                    badge: debts.length,
+                    dotColor: '#71717a',
+                  },
+                  {
+                    value: 'unpaid',
+                    label: 'Belum Lunas',
+                    badge: debts.filter((d) => getDebtStatus(d) === 'unpaid').length,
+                    dotColor: '#3b82f6',
+                  },
+                  {
+                    value: 'partial',
+                    label: 'Dicicil Sebagian',
+                    badge: debts.filter((d) => getDebtStatus(d) === 'partial').length,
+                    dotColor: '#f59e0b',
+                  },
+                  {
+                    value: 'paid',
+                    label: 'Sudah Lunas',
+                    badge: debts.filter((d) => getDebtStatus(d) === 'paid').length,
+                    dotColor: '#10b981',
+                  },
+                  {
+                    value: 'overdue',
+                    label: 'Lewat Jatuh Tempo',
+                    badge: metrics.overdueCount,
+                    dotColor: '#ef4444',
+                  },
                 ]}
               />
             </div>
@@ -563,15 +598,15 @@ export default function DebtsPage() {
                         </div>
                       </div>
 
-                      {/* Action buttons */}
-                      <div className="flex items-center gap-1.5 self-end sm:self-center">
+                      {/* Action buttons & Modern Action Dropdown */}
+                      <div className="flex items-center gap-2 self-end sm:self-center">
                         {/* Quick Pay Button */}
                         {status !== 'paid' && (
                           <Button
                             size="sm"
                             variant="primary"
                             onClick={() => setPaymentTargetDebt(item)}
-                            className="text-xs px-2.5 py-1.5 font-semibold gap-1"
+                            className="text-xs px-3 py-1.5 font-semibold gap-1.5 shadow-xs"
                             title={isReceivable ? 'Terima Pembayaran' : 'Bayar Cicilan'}
                           >
                             <Coins className="h-3.5 w-3.5" />
@@ -579,38 +614,84 @@ export default function DebtsPage() {
                           </Button>
                         )}
 
-                        {/* WhatsApp reminder button for receivables */}
+                        {/* WhatsApp Quick Button for Receivables */}
                         {isReceivable && status !== 'paid' && (
                           <Button
                             size="sm"
                             variant="secondary"
                             onClick={() => setWaReminderDebt(item)}
-                            className="text-xs px-2.5 py-1.5 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800"
+                            className="text-xs px-2.5 py-1.5 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800/80 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
                             title="Kirim Pengingat WhatsApp"
                           >
                             <MessageSquare className="h-3.5 w-3.5" />
                           </Button>
                         )}
 
-                        {/* Edit button */}
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEditModal(item)}
-                          className="p-1.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg cursor-pointer transition-colors"
-                          title="Ubah Catatan"
+                        {/* Modern Dropdown Action Menu */}
+                        <DropdownMenu
+                          trigger={
+                            <button
+                              type="button"
+                              className="h-8 w-8 rounded-xl flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200/80 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-all cursor-pointer shadow-xs"
+                              title="Pilihan Aksi"
+                              aria-label="Pilihan Aksi"
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </button>
+                          }
+                          width="w-56"
+                          align="right"
                         >
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </button>
+                          <DropdownMenuLabel>Pilihan Aksi</DropdownMenuLabel>
 
-                        {/* Delete button */}
-                        <button
-                          type="button"
-                          onClick={() => setDebtToDelete(item)}
-                          className="p-1.5 text-zinc-400 hover:text-rose-600 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors"
-                          title="Hapus Catatan"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                          {status !== 'paid' && (
+                            <DropdownMenuItem
+                              icon={<Coins className="h-4 w-4 text-amber-500" />}
+                              label={isReceivable ? 'Terima Pembayaran' : 'Bayar Cicilan'}
+                              description="Catat pelunasan atau cicilan"
+                              onClick={() => setPaymentTargetDebt(item)}
+                            />
+                          )}
+
+                          {isReceivable && (
+                            <DropdownMenuItem
+                              icon={<MessageSquare className="h-4 w-4 text-emerald-500" />}
+                              label="Pengingat WhatsApp"
+                              description={item.phone_number || 'Kirim pesan tagihan'}
+                              onClick={() => setWaReminderDebt(item)}
+                            />
+                          )}
+
+                          <DropdownMenuItem
+                            icon={<Edit2 className="h-4 w-4 text-zinc-500" />}
+                            label="Ubah Data Tagihan"
+                            description="Sunting nama, nominal, tenggat"
+                            onClick={() => handleOpenEditModal(item)}
+                          />
+
+                          {hasHistory && (
+                            <DropdownMenuItem
+                              icon={<History className="h-4 w-4 text-amber-500" />}
+                              label="Riwayat Pembayaran"
+                              badge={
+                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
+                                  {item.payments?.length}
+                                </span>
+                              }
+                              onClick={() => toggleHistory(item.id)}
+                            />
+                          )}
+
+                          <DropdownMenuSeparator />
+
+                          <DropdownMenuItem
+                            variant="danger"
+                            icon={<Trash2 className="h-4 w-4 text-rose-500" />}
+                            label="Hapus Catatan"
+                            description="Hapus dari daftar tagihan"
+                            onClick={() => setDebtToDelete(item)}
+                          />
+                        </DropdownMenu>
                       </div>
                     </div>
                   </div>

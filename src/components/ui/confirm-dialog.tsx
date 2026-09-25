@@ -60,9 +60,14 @@ export function ConfirmDialog({
         <Button
           type="button"
           variant={variant === 'danger' ? 'danger' : 'primary'}
-          onClick={() => {
-            onConfirm();
-            onClose();
+          onClick={async () => {
+            try {
+              await onConfirm();
+              onClose();
+            } catch (err) {
+              console.error('ConfirmDialog action error:', err);
+              onClose();
+            }
           }}
           isLoading={isLoading}
         >

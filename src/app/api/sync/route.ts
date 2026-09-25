@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { prisma } from '@/lib/prisma';
+import { formatUserFriendlyError } from '@/lib/utils/error-handler';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -296,8 +297,11 @@ export async function GET(request: Request) {
     });
   } catch (error: unknown) {
     console.error('Error fetching sync data:', error);
-    const msg = error instanceof Error ? error.message : 'Terjadi kesalahan saat memuat data.';
-    return NextResponse.json({ error: msg }, { status: 500 });
+    const friendlyMsg = formatUserFriendlyError(
+      error,
+      'Terjadi kendala saat memuat data dari database. Silakan coba kembali.'
+    );
+    return NextResponse.json({ error: friendlyMsg }, { status: 500 });
   }
 }
 
@@ -1154,7 +1158,10 @@ export async function POST(request: Request) {
     }
   } catch (error: unknown) {
     console.error('Error in sync mutation:', error);
-    const msg = error instanceof Error ? error.message : 'Gagal memproses sinkronisasi data.';
-    return NextResponse.json({ error: msg }, { status: 500 });
+    const friendlyMsg = formatUserFriendlyError(
+      error,
+      'Gagal memproses penyimpanan perubahan data ke database.'
+    );
+    return NextResponse.json({ error: friendlyMsg }, { status: 500 });
   }
 }
