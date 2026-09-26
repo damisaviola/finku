@@ -408,8 +408,8 @@ export default function DashboardPage() {
                                 t.type === 'income'
                                   ? 'text-emerald-600 dark:text-emerald-400'
                                   : t.type === 'expense'
-                                  ? 'text-rose-600 dark:text-rose-400'
-                                  : 'text-zinc-700 dark:text-zinc-300'
+                                    ? 'text-rose-600 dark:text-rose-400'
+                                    : 'text-zinc-700 dark:text-zinc-300'
                               }
                             >
                               {t.type === 'income' && `+${formatAmount(t.amount)}`}

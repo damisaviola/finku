@@ -221,11 +221,10 @@ export default function SettingsPage() {
         <button
           type="button"
           onClick={() => setActiveTab('profile')}
-          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === 'profile'
+          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${activeTab === 'profile'
               ? 'bg-white dark:bg-zinc-900 text-zinc-950 dark:text-white shadow-xs border border-zinc-200/50 dark:border-zinc-700/50'
               : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
-          }`}
+            }`}
         >
           <User className="h-3.5 w-3.5" />
           <span>Profil</span>
@@ -234,11 +233,10 @@ export default function SettingsPage() {
         <button
           type="button"
           onClick={() => setActiveTab('preferences')}
-          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === 'preferences'
+          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${activeTab === 'preferences'
               ? 'bg-white dark:bg-zinc-900 text-zinc-950 dark:text-white shadow-xs border border-zinc-200/50 dark:border-zinc-700/50'
               : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
-          }`}
+            }`}
         >
           <Sliders className="h-3.5 w-3.5" />
           <span>Tampilan & Preferensi</span>
@@ -247,11 +245,10 @@ export default function SettingsPage() {
         <button
           type="button"
           onClick={() => setActiveTab('security')}
-          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === 'security'
+          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${activeTab === 'security'
               ? 'bg-white dark:bg-zinc-900 text-zinc-950 dark:text-white shadow-xs border border-zinc-200/50 dark:border-zinc-700/50'
               : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
-          }`}
+            }`}
         >
           <Shield className="h-3.5 w-3.5" />
           <span>Keamanan</span>
@@ -260,11 +257,10 @@ export default function SettingsPage() {
         <button
           type="button"
           onClick={() => setActiveTab('data')}
-          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === 'data'
+          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${activeTab === 'data'
               ? 'bg-white dark:bg-zinc-900 text-zinc-950 dark:text-white shadow-xs border border-zinc-200/50 dark:border-zinc-700/50'
               : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
-          }`}
+            }`}
         >
           <Database className="h-3.5 w-3.5" />
           <span>Data & Sistem</span>
@@ -360,11 +356,10 @@ export default function SettingsPage() {
                   <button
                     type="button"
                     onClick={() => handleSelectTheme('light')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                      localTheme === 'light'
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${localTheme === 'light'
                         ? 'bg-white dark:bg-zinc-900 text-amber-600 dark:text-amber-400 shadow-xs border border-zinc-200/50 dark:border-zinc-700/50'
                         : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
-                    }`}
+                      }`}
                   >
                     <Sun className="h-3.5 w-3.5" />
                     <span>Terang</span>
@@ -372,11 +367,10 @@ export default function SettingsPage() {
                   <button
                     type="button"
                     onClick={() => handleSelectTheme('dark')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                      localTheme === 'dark'
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${localTheme === 'dark'
                         ? 'bg-white dark:bg-zinc-900 text-amber-600 dark:text-amber-400 shadow-xs border border-zinc-200/50 dark:border-zinc-700/50'
                         : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
-                    }`}
+                      }`}
                   >
                     <Moon className="h-3.5 w-3.5" />
                     <span>Gelap</span>
@@ -384,11 +378,10 @@ export default function SettingsPage() {
                   <button
                     type="button"
                     onClick={() => handleSelectTheme('system')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                      localTheme === 'system'
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${localTheme === 'system'
                         ? 'bg-white dark:bg-zinc-900 text-amber-600 dark:text-amber-400 shadow-xs border border-zinc-200/50 dark:border-zinc-700/50'
                         : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
-                    }`}
+                      }`}
                   >
                     <Laptop className="h-3.5 w-3.5" />
                     <span>Sistem</span>
@@ -422,11 +415,10 @@ export default function SettingsPage() {
                         key={size.id}
                         type="button"
                         onClick={() => handleSelectFontSize(size.id)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                          isSelected
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${isSelected
                             ? 'bg-white dark:bg-zinc-900 text-amber-600 dark:text-amber-400 shadow-xs border border-zinc-200/50 dark:border-zinc-700/50'
                             : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
-                        }`}
+                          }`}
                         title={size.title}
                       >
                         <span>{size.title}</span>
@@ -458,16 +450,14 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={togglePrivacyMode}
-                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    isPrivacyMode ? 'bg-amber-500' : 'bg-zinc-200 dark:bg-zinc-700'
-                  }`}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${isPrivacyMode ? 'bg-amber-500' : 'bg-zinc-200 dark:bg-zinc-700'
+                    }`}
                   role="switch"
                   aria-checked={isPrivacyMode}
                 >
                   <span
-                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
-                      isPrivacyMode ? 'translate-x-5' : 'translate-x-0'
-                    }`}
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${isPrivacyMode ? 'translate-x-5' : 'translate-x-0'
+                      }`}
                   />
                 </button>
               </div>

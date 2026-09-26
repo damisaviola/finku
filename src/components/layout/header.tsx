@@ -93,11 +93,10 @@ export function Header() {
           type="button"
           aria-label={isPrivacyMode ? 'Tampilkan nominal saldo' : 'Sembunyikan nominal saldo (Mode Privasi)'}
           title={isPrivacyMode ? 'Mode Privasi Aktif: Klik untuk tampilkan saldo' : 'Sembunyikan Saldo (Mode Privasi)'}
-          className={`p-2 rounded-lg transition-colors shadow-xs cursor-pointer ${
-            isPrivacyMode
+          className={`p-2 rounded-lg transition-colors shadow-xs cursor-pointer ${isPrivacyMode
               ? 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30'
               : 'text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700/80'
-          }`}
+            }`}
         >
           {isPrivacyMode ? (
             <EyeOff className="h-4 w-4" />

@@ -51,15 +51,15 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
           >
             {options
               ? options.map((opt) => (
-                  <option
-                    key={opt.value}
-                    value={opt.value}
-                    disabled={opt.disabled}
-                    className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100"
-                  >
-                    {opt.label}
-                  </option>
-                ))
+                <option
+                  key={opt.value}
+                  value={opt.value}
+                  disabled={opt.disabled}
+                  className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100"
+                >
+                  {opt.label}
+                </option>
+              ))
               : children}
           </select>
           <div className="absolute right-3.5 flex items-center pointer-events-none text-zinc-400 dark:text-zinc-500 group-focus-within:text-amber-500 transition-colors">
