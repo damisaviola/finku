@@ -29,18 +29,44 @@ export function PwaRegister() {
       (window.navigator as unknown as { standalone?: boolean }).standalone === true;
     setIsStandalone(Boolean(isInStandaloneMode));
 
-    // Register Service Worker in production or local testing
+    // Service Worker Management: Only run in production on actual domains.
+    // In local development, automatically unregister any stale service workers & clear caches to prevent chunk mismatch errors.
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker
-          .register('/sw.js')
-          .then((registration) => {
-            console.log('PWA Service Worker terdaftar dengan scope:', registration.scope);
-          })
-          .catch((error) => {
-            console.warn('PWA Service Worker gagal didaftarkan:', error);
+      const isLocalhost =
+        window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1' ||
+        window.location.hostname.endsWith('.local');
+
+      if (process.env.NODE_ENV !== 'production' || isLocalhost) {
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          for (const registration of registrations) {
+            registration.unregister().then((success) => {
+              if (success) {
+                console.log('PWA Service Worker unregistered for local development');
+              }
+            });
+          }
+        });
+
+        if ('caches' in window) {
+          caches.keys().then((keys) => {
+            for (const key of keys) {
+              caches.delete(key);
+            }
           });
-      });
+        }
+      } else {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker
+            .register('/sw.js')
+            .then((registration) => {
+              console.log('PWA Service Worker terdaftar dengan scope:', registration.scope);
+            })
+            .catch((error) => {
+              console.warn('PWA Service Worker gagal didaftarkan:', error);
+            });
+        });
+      }
     }
 
     // Network status listener

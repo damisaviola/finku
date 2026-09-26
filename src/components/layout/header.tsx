@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { Plus, ChevronRight, Calendar, Sun, Moon, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useDompetKu } from '@/lib/store';
-import { formatBulan } from '@/lib/utils/formatters';
+import { formatBulan, cn } from '@/lib/utils/formatters';
 
 export function Header() {
   const pathname = usePathname();
@@ -46,7 +46,9 @@ export function Header() {
   const breadcrumbs = getBreadcrumbs();
 
   return (
-    <header className="sticky top-0 z-20 h-16 w-full border-b border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xs px-4 sm:px-8 flex items-center justify-between transition-colors">
+    <header
+      className="sticky top-0 z-20 h-16 w-full border-b border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xs px-4 sm:px-8 hidden lg:flex items-center justify-between transition-colors"
+    >
       {/* Filament Breadcrumbs Navigation */}
       <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs">
         {breadcrumbs.map((crumb, idx) => {

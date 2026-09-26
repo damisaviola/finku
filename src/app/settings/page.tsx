@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Sun,
@@ -27,7 +28,11 @@ import {
   KeyRound,
   Shield,
   CheckCircle2,
+  Type,
+  ChevronRight,
+  ChevronLeft,
 } from 'lucide-react';
+import { cn } from '@/lib/utils/formatters';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -186,10 +191,79 @@ export default function SettingsPage() {
     .map((word) => word[0].toUpperCase())
     .join('');
 
+  const tabItems = [
+    {
+      id: 'profile' as const,
+      title: 'Profil & Akun',
+      shortTitle: 'Profil',
+      subtitle: 'Identitas pengguna & surel',
+      icon: User,
+    },
+    {
+      id: 'preferences' as const,
+      title: 'Tampilan & Preferensi',
+      shortTitle: 'Tampilan',
+      subtitle: 'Tema, ukuran teks & sensor saldo',
+      icon: Sliders,
+    },
+    {
+      id: 'security' as const,
+      title: 'Keamanan Akun',
+      shortTitle: 'Keamanan',
+      subtitle: 'Kata sandi & privasi login',
+      icon: Shield,
+    },
+    {
+      id: 'data' as const,
+      title: 'Data & Sistem',
+      shortTitle: 'Data',
+      subtitle: 'Sinkronisasi cloud & reset data',
+      icon: Database,
+    },
+  ];
+
   return (
-    <div className="space-y-6 max-w-4xl">
-      {/* Page Header */}
-      <div className="pb-4 border-b border-zinc-200/80 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-6 max-w-6xl w-full">
+      {/* Mobile Sunset Gradient Hero Header (md:hidden) */}
+      <div className="md:hidden -mx-4 -mt-4 pb-4">
+        <div className="relative bg-gradient-to-b from-[#8b2d18] via-[#c65324] to-[#0a4d92] px-4 pt-4 pb-5 text-white overflow-hidden rounded-b-2xl">
+          <div className="relative z-10 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Link
+                href="/dashboard"
+                className="h-8 w-8 rounded-full bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/25 active:scale-95 transition-all"
+                aria-label="Kembali ke Dashboard"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </Link>
+              <div>
+                <h1 className="text-base font-bold text-white leading-tight">
+                  Pengaturan
+                </h1>
+                <p className="text-[11px] text-white/80 font-medium leading-none mt-0.5">
+                  {name || user?.name || 'Pengguna'}
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={async () => {
+                showToast('Menyinkronkan pengaturan...', 'info');
+                await syncToCloud();
+              }}
+              disabled={isSyncing}
+              className="h-8 w-8 rounded-full bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/25 active:scale-95 transition-all cursor-pointer"
+              title="Sinkronisasi Cloud"
+            >
+              <RefreshCw className={cn('h-4 w-4', isSyncing && 'animate-spin text-amber-300')} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop Page Header (hidden on mobile, visible on md:) */}
+      <div className="hidden md:flex pb-4 border-b border-zinc-200/80 dark:border-zinc-800 flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold tracking-tight text-zinc-950 dark:text-white">
             Pengaturan
@@ -201,14 +275,14 @@ export default function SettingsPage() {
 
         {/* Quick User Identity Pill */}
         <div className="flex items-center gap-3 px-3 py-1.5 rounded-full border border-zinc-200/80 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xs self-start sm:self-auto">
-          <div className="h-6 w-6 rounded-full bg-gradient-to-tr from-amber-500 to-amber-400 flex items-center justify-center text-white text-[10px] font-bold shadow-xs">
+          <div className="h-6 w-6 rounded-full bg-gradient-to-tr from-amber-500 to-amber-400 flex items-center justify-center text-zinc-950 text-[10px] font-bold shadow-xs">
             {initials || 'U'}
           </div>
           <div className="text-left">
             <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 leading-none">
               {name || user?.name || 'Pengguna'}
             </p>
-            <p className="text-[10px] text-zinc-400 dark:text-zinc-500 leading-none mt-0.5">
+            <p className="text-[10px] text-zinc-400 dark:text-zinc-500 leading-none mt-0.5 font-mono">
               {user?.email || 'Tamu'}
             </p>
           </div>
@@ -216,56 +290,108 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Navigation Tabs (Minimalist Segmented Control) */}
-      <div className="flex items-center gap-1.5 p-1 rounded-xl bg-zinc-100/90 dark:bg-zinc-800/60 border border-zinc-200/70 dark:border-zinc-700/60 overflow-x-auto scrollbar-none">
-        <button
-          type="button"
-          onClick={() => setActiveTab('profile')}
-          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${activeTab === 'profile'
-              ? 'bg-white dark:bg-zinc-900 text-zinc-950 dark:text-white shadow-xs border border-zinc-200/50 dark:border-zinc-700/50'
-              : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
-            }`}
-        >
-          <User className="h-3.5 w-3.5" />
-          <span>Profil</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('preferences')}
-          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${activeTab === 'preferences'
-              ? 'bg-white dark:bg-zinc-900 text-zinc-950 dark:text-white shadow-xs border border-zinc-200/50 dark:border-zinc-700/50'
-              : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
-            }`}
-        >
-          <Sliders className="h-3.5 w-3.5" />
-          <span>Tampilan & Preferensi</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('security')}
-          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${activeTab === 'security'
-              ? 'bg-white dark:bg-zinc-900 text-zinc-950 dark:text-white shadow-xs border border-zinc-200/50 dark:border-zinc-700/50'
-              : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
-            }`}
-        >
-          <Shield className="h-3.5 w-3.5" />
-          <span>Keamanan</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('data')}
-          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${activeTab === 'data'
-              ? 'bg-white dark:bg-zinc-900 text-zinc-950 dark:text-white shadow-xs border border-zinc-200/50 dark:border-zinc-700/50'
-              : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
-            }`}
-        >
-          <Database className="h-3.5 w-3.5" />
-          <span>Data & Sistem</span>
-        </button>
+      {/* Mobile Tab Navigation (Horizontal Segmented Control - md:hidden) */}
+      <div className="md:hidden flex items-center gap-1.5 p-1 rounded-xl bg-zinc-100/90 dark:bg-zinc-800/60 border border-zinc-200/70 dark:border-zinc-700/60 overflow-x-auto scrollbar-none">
+        {tabItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setActiveTab(item.id)}
+              className={cn(
+                'flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap',
+                isActive
+                  ? 'bg-white dark:bg-zinc-900 text-zinc-950 dark:text-white shadow-xs border border-zinc-200/50 dark:border-zinc-700/50'
+                  : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
+              )}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              <span>{item.shortTitle}</span>
+            </button>
+          );
+        })}
       </div>
+
+      {/* Two-Pane Split Layout (Desktop & Tablet) */}
+      <div className="flex flex-col md:flex-row gap-6 lg:gap-8 items-start">
+        {/* Left Pane: Settings Navigation Sidebar */}
+        <aside className="hidden md:block w-72 lg:w-80 shrink-0 space-y-4 sticky top-20">
+          <div className="rounded-2xl border border-zinc-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-2 shadow-xs space-y-1">
+            <div className="px-3 pt-2 pb-1.5">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                Menu Pengaturan
+              </p>
+            </div>
+            {tabItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setActiveTab(item.id)}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all cursor-pointer group',
+                    isActive
+                      ? 'bg-amber-500/10 dark:bg-amber-500/15 text-amber-900 dark:text-amber-200 font-semibold border border-amber-500/25 shadow-xs'
+                      : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 hover:text-zinc-950 dark:hover:text-white border border-transparent'
+                  )}
+                >
+                  <div
+                    className={cn(
+                      'h-8 w-8 rounded-lg flex items-center justify-center shrink-0 transition-colors',
+                      isActive
+                        ? 'bg-amber-500 text-zinc-950 shadow-xs'
+                        : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-200'
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold truncate leading-tight">
+                      {item.title}
+                    </p>
+                    <p className="text-[10px] text-zinc-400 dark:text-zinc-500 truncate leading-tight mt-0.5">
+                      {item.subtitle}
+                    </p>
+                  </div>
+                  {isActive && (
+                    <ChevronRight className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Quick System Status Card */}
+          <div className="rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-50/60 dark:bg-zinc-900/60 p-3.5 space-y-2.5">
+            <div className="flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400">
+              <span className="flex items-center gap-1.5 font-medium">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                DompetKu
+              </span>
+              <span className="font-mono text-[10px] text-zinc-400">v1.0.0</span>
+            </div>
+            <p className="text-[10px] text-zinc-400 dark:text-zinc-500 leading-normal">
+              Aplikasi pencatatan keuangan pribadi luring & daring.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 hover:border-rose-300 dark:hover:border-rose-900 justify-center shadow-2xs"
+              onClick={() => setIsLogoutDialogOpen(true)}
+            >
+              <LogOut className="h-3.5 w-3.5 mr-1.5" />
+              <span>Keluar Sesi Akun</span>
+            </Button>
+          </div>
+        </aside>
+
+        {/* Right Pane: Active Tab Content */}
+        <main className="flex-1 min-w-0 w-full space-y-6">
 
       {/* TAB 1: PROFIL & AKUN */}
       {activeTab === 'profile' && (
@@ -767,6 +893,8 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+        </main>
+      </div>
 
       {/* Confirmation Dialogs */}
       <ConfirmDialog

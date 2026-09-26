@@ -1,5 +1,5 @@
 // DompetKu PWA Service Worker
-const CACHE_NAME = 'dompetku-cache-v1';
+const CACHE_NAME = 'dompetku-cache-v2';
 
 // Static assets to pre-cache on install
 const PRECACHE_ASSETS = [
@@ -51,6 +51,16 @@ self.addEventListener('fetch', (event) => {
 
   // Skip non-GET requests or chrome-extension / non-http requests
   if (request.method !== 'GET' || !url.protocol.startsWith('http')) {
+    return;
+  }
+
+  // Bypass on localhost/development or Turbopack/HMR chunks
+  if (
+    url.hostname === 'localhost' ||
+    url.hostname === '127.0.0.1' ||
+    url.pathname.includes('webpack') ||
+    url.pathname.includes('turbopack')
+  ) {
     return;
   }
 

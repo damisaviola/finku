@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import {
   Plus,
@@ -13,6 +13,12 @@ import {
   FileText,
   Coins,
   CreditCard,
+  ChevronLeft,
+  Eye,
+  EyeOff,
+  ArrowDownLeft,
+  ArrowUpRight,
+  TrendingUp,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,8 +29,8 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { useDompetKu } from '@/lib/store';
 import { Account, AccountType } from '@/types';
-import { calculateAccountBalance } from '@/lib/calculations/finance';
-import { formatRupiah } from '@/lib/utils/formatters';
+import { calculateAccountBalance, calculateTotalBalance } from '@/lib/calculations/finance';
+import { formatRupiah, cn } from '@/lib/utils/formatters';
 
 export default function AccountsPage() {
   const {
@@ -34,11 +40,17 @@ export default function AccountsPage() {
     updateAccount,
     deleteAccount,
     formatAmount,
+    isPrivacyMode,
+    togglePrivacyMode,
+    openTransactionModal,
   } = useDompetKu();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [accountToDelete, setAccountToDelete] = useState<Account | null>(null);
+
+  // Type filter for mobile
+  const [activeTypeTab, setActiveTypeTab] = useState<string>('all');
 
   // Form State
   const [name, setName] = useState('');
@@ -49,6 +61,41 @@ export default function AccountsPage() {
   const [color, setColor] = useState('#3b82f6');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
+
+  // Total balance across all accounts
+  const totalBalance = useMemo(() => {
+    return calculateTotalBalance(accounts, transactions);
+  }, [accounts, transactions]);
+
+  // Accounts with balances
+  const accountsWithBalances = useMemo(() => {
+    return accounts.map((acc) => {
+      const balance = calculateAccountBalance(acc, transactions);
+      return { ...acc, currentBalance: balance };
+    });
+  }, [accounts, transactions]);
+
+  // Breakdown by type
+  const typeMetrics = useMemo(() => {
+    const bankAccs = accountsWithBalances.filter((a) => a.type === 'Bank');
+    const ewalletAccs = accountsWithBalances.filter((a) => a.type === 'Dompet Digital');
+    const cashAccs = accountsWithBalances.filter((a) => a.type === 'Uang Tunai');
+
+    return {
+      bankTotal: bankAccs.reduce((s, a) => s + a.currentBalance, 0),
+      bankCount: bankAccs.length,
+      ewalletTotal: ewalletAccs.reduce((s, a) => s + a.currentBalance, 0),
+      ewalletCount: ewalletAccs.length,
+      cashTotal: cashAccs.reduce((s, a) => s + a.currentBalance, 0),
+      cashCount: cashAccs.length,
+    };
+  }, [accountsWithBalances]);
+
+  // Filtered accounts for display
+  const filteredAccounts = useMemo(() => {
+    if (activeTypeTab === 'all') return accountsWithBalances;
+    return accountsWithBalances.filter((a) => a.type === activeTypeTab);
+  }, [accountsWithBalances, activeTypeTab]);
 
   const handleOpenModal = (acc?: Account) => {
     setErrors({});
@@ -126,180 +173,374 @@ export default function AccountsPage() {
 
   return (
     <div className="space-y-5">
-      {/* Filament Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold tracking-tight text-zinc-950 dark:text-white">
-            Rekening & Dompet
-          </h2>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-            Daftar seluruh rekening bank, kas fisik, dan dompet digital Anda.
-          </p>
+      {/* ========================================================= */}
+      {/* MOBILE VIEW (BRImo-style Responsive Design: visible on < lg) */}
+      {/* ========================================================= */}
+      <div className="lg:hidden -mx-4 -mt-4 pb-8 space-y-4">
+        {/* 1. Mobile Sunset Gradient Hero Header */}
+        <div className="relative bg-gradient-to-b from-[#8b2d18] via-[#c65324] to-[#0a4d92] px-4 pt-4 pb-14 text-white overflow-hidden">
+          {/* Subtle Skyline Background Pattern */}
+          <div className="absolute inset-0 opacity-15 pointer-events-none flex items-end">
+            <svg className="w-full h-20" viewBox="0 0 400 100" fill="currentColor" preserveAspectRatio="none">
+              <rect x="10" y="35" width="28" height="65" />
+              <rect x="42" y="15" width="34" height="85" />
+              <rect x="80" y="45" width="22" height="55" />
+              <rect x="108" y="20" width="38" height="80" />
+              <rect x="152" y="48" width="28" height="52" />
+              <rect x="186" y="12" width="36" height="88" />
+              <rect x="228" y="38" width="24" height="62" />
+              <rect x="258" y="22" width="44" height="78" />
+              <rect x="308" y="52" width="28" height="48" />
+              <rect x="342" y="18" width="48" height="82" />
+            </svg>
+          </div>
+
+          {/* Top Bar: Back Button, Title, and Actions */}
+          <div className="relative z-10 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Link
+                href="/dashboard"
+                className="h-8 w-8 rounded-full bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/25 active:scale-95 transition-all"
+                aria-label="Kembali ke Dashboard"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </Link>
+              <div>
+                <h1 className="text-base font-bold text-white leading-tight">
+                  Rekening Saya
+                </h1>
+                <p className="text-[11px] text-white/80 font-medium leading-none mt-0.5">
+                  {accounts.length} Akun Terdaftar
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <Link
+                href="/statement"
+                className="h-8 w-8 rounded-full bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/25 active:scale-95 transition-all"
+                title="Rekening Koran"
+              >
+                <FileText className="h-4 w-4" />
+              </Link>
+              <button
+                onClick={() => handleOpenModal()}
+                type="button"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-amber-400 text-zinc-950 font-bold text-xs shadow-md hover:bg-amber-300 active:scale-95 transition-all"
+              >
+                <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
+                <span>Rekening</span>
+              </button>
+            </div>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Link href="/statement">
-            <Button variant="secondary" size="sm" className="gap-1.5">
-              <FileText className="h-3.5 w-3.5 text-amber-500" />
-              <span>Rekening Koran</span>
-            </Button>
-          </Link>
-          <Button
-            onClick={() => handleOpenModal()}
-            variant="primary"
-            size="sm"
-          >
-            <Plus className="h-3.5 w-3.5 mr-1" />
-            <span>Tambah Rekening</span>
-          </Button>
+        {/* 2. Floating Mobile Hero Net Worth Card */}
+        <div className="relative z-20 px-4 -mt-10">
+          <div className="rounded-2xl border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-lg shadow-zinc-950/5 dark:shadow-black/20 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+                Total Kekayaan Bersih (Seluruh Rekening)
+              </span>
+              <button
+                onClick={togglePrivacyMode}
+                className="p-1 rounded-md text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 cursor-pointer"
+                title={isPrivacyMode ? 'Tampilkan Saldo' : 'Sembunyikan Saldo'}
+              >
+                {isPrivacyMode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+
+            <div className="text-2xl font-black font-mono tracking-tight text-zinc-950 dark:text-white">
+              {isPrivacyMode ? '••••••••' : formatAmount(totalBalance)}
+            </div>
+
+            {/* Quick Breakdown Pills */}
+            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-zinc-100 dark:border-zinc-800/80 text-center">
+              <div className="p-2 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800">
+                <p className="text-[10px] text-zinc-400 font-medium">Bank</p>
+                <p className="text-xs font-bold font-mono text-zinc-900 dark:text-white mt-0.5 truncate">
+                  {isPrivacyMode ? '•••' : formatAmount(typeMetrics.bankTotal)}
+                </p>
+              </div>
+
+              <div className="p-2 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800">
+                <p className="text-[10px] text-zinc-400 font-medium">E-Wallet</p>
+                <p className="text-xs font-bold font-mono text-zinc-900 dark:text-white mt-0.5 truncate">
+                  {isPrivacyMode ? '•••' : formatAmount(typeMetrics.ewalletTotal)}
+                </p>
+              </div>
+
+              <div className="p-2 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800">
+                <p className="text-[10px] text-zinc-400 font-medium">Kas Tunai</p>
+                <p className="text-xs font-bold font-mono text-zinc-900 dark:text-white mt-0.5 truncate">
+                  {isPrivacyMode ? '•••' : formatAmount(typeMetrics.cashTotal)}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 3. Horizontal Filter Pills */}
+        <div className="px-4">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+            {[
+              { id: 'all', label: 'Semua', count: accounts.length },
+              { id: 'Bank', label: 'Bank', count: typeMetrics.bankCount },
+              { id: 'Dompet Digital', label: 'E-Wallet', count: typeMetrics.ewalletCount },
+              { id: 'Uang Tunai', label: 'Kas Tunai', count: typeMetrics.cashCount },
+            ].map((tab) => {
+              const isActive = activeTypeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTypeTab(tab.id)}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer',
+                    isActive
+                      ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 shadow-xs'
+                      : 'bg-zinc-100 dark:bg-zinc-800/80 text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white'
+                  )}
+                >
+                  <span>{tab.label}</span>
+                  <span
+                    className={cn(
+                      'text-[10px] px-1.5 py-0.2 rounded-full font-bold',
+                      isActive
+                        ? 'bg-white/20 dark:bg-zinc-950/20'
+                        : 'bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300'
+                    )}
+                  >
+                    {tab.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 4. Mobile Native Card List */}
+        <div className="px-4 space-y-3">
+          {filteredAccounts.length === 0 ? (
+            <div className="py-10 px-4 text-center rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 space-y-2.5">
+              <div className="h-10 w-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-400 flex items-center justify-center mx-auto">
+                <Wallet className="h-5 w-5" />
+              </div>
+              <p className="text-xs font-semibold text-zinc-900 dark:text-white">
+                Belum ada rekening dalam kategori ini
+              </p>
+              <Button onClick={() => handleOpenModal()} size="sm" variant="primary">
+                Tambah Rekening
+              </Button>
+            </div>
+          ) : (
+            filteredAccounts.map((acc) => {
+              const currentBalance = acc.currentBalance;
+
+              return (
+                <div
+                  key={acc.id}
+                  className="rounded-2xl border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-xs space-y-3"
+                >
+                  {/* Top: Avatar, Name & Actions */}
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="h-11 w-11 rounded-xl flex items-center justify-center text-white text-xs font-black shadow-xs shrink-0"
+                        style={{ backgroundColor: acc.color || '#3b82f6' }}
+                      >
+                        {acc.name.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-zinc-950 dark:text-white">
+                          {acc.name}
+                        </h3>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium">
+                            {acc.type}
+                          </span>
+                          {acc.account_number && (
+                            <>
+                              <span className="text-zinc-300 dark:text-zinc-600">•</span>
+                              <span className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400">
+                                {acc.account_number}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleOpenModal(acc)}
+                        aria-label="Ubah rekening"
+                        className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setAccountToDelete(acc)}
+                        aria-label="Hapus rekening"
+                        className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Saldo Display */}
+                  <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] text-zinc-400 font-medium">Saldo Rekening</p>
+                      <p className="text-base font-bold font-mono text-zinc-950 dark:text-white mt-0.5">
+                        {isPrivacyMode ? '••••••••' : formatAmount(currentBalance)}
+                      </p>
+                    </div>
+                    <Link
+                      href={`/statement?accountId=${acc.id}`}
+                      className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1"
+                    >
+                      <FileText className="h-3 w-3" />
+                      <span>Koran</span>
+                    </Link>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
 
-      {/* Filament Accounts Grid */}
-      {accounts.length === 0 ? (
-        <div className="p-12 text-center rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/40">
-          <div className="h-12 w-12 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-400 mx-auto flex items-center justify-center mb-3">
-            <Wallet className="h-6 w-6" />
+      {/* ========================================================= */}
+      {/* DESKTOP VIEW (Filament UI Layout: visible on lg:) */}
+      {/* ========================================================= */}
+      <div className="hidden lg:block space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-bold tracking-tight text-zinc-950 dark:text-white">
+              Rekening & Dompet
+            </h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+              Daftar seluruh rekening bank, kas fisik, dan dompet digital Anda.
+            </p>
           </div>
-          <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            Belum ada rekening dibuat
-          </h4>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 max-w-sm mx-auto">
-            Mulai tambahkan rekening bank, dompet digital, atau uang tunai untuk mencatat transaksi keuangan Anda.
-          </p>
-          <div className="mt-4 flex items-center justify-center">
-            <Button onClick={() => handleOpenModal()} size="sm" variant="primary">
+
+          <div className="flex items-center gap-2">
+            <Link href="/statement">
+              <Button variant="secondary" size="sm" className="gap-1.5">
+                <FileText className="h-3.5 w-3.5 text-amber-500" />
+                <span>Rekening Koran</span>
+              </Button>
+            </Link>
+            <Button
+              onClick={() => handleOpenModal()}
+              variant="primary"
+              size="sm"
+            >
               <Plus className="h-3.5 w-3.5 mr-1" />
-              <span>Tambah Rekening Baru</span>
+              <span>Tambah Rekening</span>
             </Button>
           </div>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {accounts.map((acc) => {
-          const currentBalance = calculateAccountBalance(acc, transactions);
 
-          const incomeTotal = transactions
-            .filter((t) => t.type === 'income' && t.account_id === acc.id)
-            .reduce((s, t) => s + t.amount, 0);
+        {/* Filament Accounts Grid */}
+        {accounts.length === 0 ? (
+          <div className="p-12 text-center rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/40">
+            <div className="h-12 w-12 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-400 mx-auto flex items-center justify-center mb-3">
+              <Wallet className="h-6 w-6" />
+            </div>
+            <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              Belum ada rekening dibuat
+            </h4>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 max-w-sm mx-auto">
+              Mulai tambahkan rekening bank, dompet digital, atau uang tunai untuk mencatat transaksi keuangan Anda.
+            </p>
+            <div className="mt-4 flex items-center justify-center">
+              <Button onClick={() => handleOpenModal()} size="sm" variant="primary">
+                <Plus className="h-3.5 w-3.5 mr-1" />
+                <span>Tambah Rekening Baru</span>
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {accounts.map((acc) => {
+              const currentBalance = calculateAccountBalance(acc, transactions);
 
-          const expenseTotal = transactions
-            .filter((t) => t.type === 'expense' && t.account_id === acc.id)
-            .reduce((s, t) => s + t.amount, 0);
+              return (
+                <div
+                  key={acc.id}
+                  className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xs ring-1 ring-zinc-950/5 dark:ring-white/5 p-5 space-y-4 flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="h-10 w-10 rounded-lg flex items-center justify-center text-white text-xs font-bold shadow-xs"
+                          style={{ backgroundColor: acc.color || '#3b82f6' }}
+                        >
+                          {acc.name.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-semibold text-zinc-950 dark:text-white">
+                            {acc.name}
+                          </h3>
+                          <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                            <Badge variant="default" size="sm" dot={false}>
+                              {acc.type}
+                            </Badge>
+                            {acc.type === 'Bank' && acc.account_number && (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-mono text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded border border-zinc-200/60 dark:border-zinc-700/60">
+                                <CreditCard className="h-3 w-3 text-zinc-400" />
+                                <span>{acc.account_number}</span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
 
-          const transferOutTotal = transactions
-            .filter((t) => t.type === 'transfer' && t.account_id === acc.id)
-            .reduce((s, t) => s + t.amount, 0);
-
-          const transferInTotal = transactions
-            .filter((t) => t.type === 'transfer' && t.destination_account_id === acc.id)
-            .reduce((s, t) => s + t.amount, 0);
-
-          return (
-            <div
-              key={acc.id}
-              className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xs ring-1 ring-zinc-950/5 dark:ring-white/5 p-5 space-y-4 flex flex-col justify-between"
-            >
-              <div>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="h-10 w-10 rounded-lg flex items-center justify-center text-white text-xs font-bold shadow-xs"
-                      style={{ backgroundColor: acc.color || '#3b82f6' }}
-                    >
-                      {acc.name.slice(0, 2).toUpperCase()}
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleOpenModal(acc)}
+                          aria-label="Ubah rekening"
+                          className="p-1 rounded text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setAccountToDelete(acc)}
+                          aria-label="Hapus rekening"
+                          className="p-1 rounded text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-sm font-semibold text-zinc-950 dark:text-white">
-                        {acc.name}
-                      </h3>
-                      <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                        <Badge variant="default" size="sm" dot={false}>
-                          {acc.type}
-                        </Badge>
-                        {acc.type === 'Bank' && acc.account_number && (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-mono text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded border border-zinc-200/60 dark:border-zinc-700/60">
-                            <CreditCard className="h-3 w-3 text-zinc-400" />
-                            <span>{acc.account_number}</span>
-                          </span>
-                        )}
+
+                    <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800/80">
+                      <span className="text-[11px] text-zinc-400 font-medium">Saldo Rekening</span>
+                      <div className="text-xl font-bold font-mono text-zinc-950 dark:text-white mt-0.5">
+                        {isPrivacyMode ? '••••••••' : formatAmount(currentBalance)}
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleOpenModal(acc)}
-                      aria-label="Ubah rekening"
-                      className="p-1 rounded text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                  <div className="pt-2 flex items-center justify-between">
+                    <Link
+                      href={`/statement?accountId=${acc.id}`}
+                      className="text-xs text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1 font-medium"
                     >
-                      <Edit2 className="h-3.5 w-3.5" />
-                    </button>
-                    {accounts.length > 1 && (
-                      <button
-                        onClick={() => setAccountToDelete(acc)}
-                        aria-label="Hapus rekening"
-                        className="p-1 rounded text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    )}
+                      <FileText className="h-3 w-3" />
+                      <span>Lihat Rekening Koran</span>
+                    </Link>
                   </div>
                 </div>
-
-                <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800/80">
-                  <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider block">
-                    Saldo Saat Ini
-                  </span>
-                  <div className="text-xl font-bold font-mono text-zinc-950 dark:text-white mt-0.5">
-                    {formatAmount(currentBalance)}
-                  </div>
-                </div>
-              </div>
-
-              {/* Filament Details Breakdown */}
-              <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800/80 grid grid-cols-2 gap-2 text-xs">
-                <div>
-                  <span className="text-zinc-400 block text-[10px]">Saldo Awal</span>
-                  <span className="font-mono text-zinc-700 dark:text-zinc-300 font-medium">
-                    {formatAmount(acc.initial_balance)}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-zinc-400 block text-[10px]">Pemasukan</span>
-                  <span className="font-mono text-emerald-600 dark:text-emerald-400 font-medium">
-                    +{formatAmount(incomeTotal + transferInTotal)}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-zinc-400 block text-[10px]">Pengeluaran</span>
-                  <span className="font-mono text-rose-600 dark:text-rose-400 font-medium">
-                    -{formatAmount(expenseTotal)}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-zinc-400 block text-[10px]">Mutasi Keluar</span>
-                  <span className="font-mono text-zinc-600 dark:text-zinc-400 font-medium">
-                    -{formatAmount(transferOutTotal)}
-                  </span>
-                </div>
-              </div>
-
-              <div className="pt-2.5 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between">
-                <Link
-                  href={`/statement?accountId=${acc.id}`}
-                  className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
-                >
-                  <FileText className="h-3 w-3" />
-                  <span>Rekening Koran</span>
-                </Link>
-                <span className="text-[10px] text-zinc-400">Ekspor PDF</span>
-              </div>
-            </div>
-          );
-        })}
+              );
+            })}
+          </div>
+        )}
       </div>
-      )}
 
       {/* Account Add/Edit Modal */}
       <Dialog

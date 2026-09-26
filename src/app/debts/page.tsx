@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import Link from 'next/link';
 import {
   HandCoins,
   ArrowDownLeft,
@@ -25,6 +26,7 @@ import {
   History,
   Filter,
   MoreHorizontal,
+  ChevronLeft,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -189,7 +191,344 @@ export default function DebtsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
+      {/* ========================================================= */}
+      {/* MOBILE VIEW (BRImo-style Responsive Design: visible on < lg) */}
+      {/* ========================================================= */}
+      <div className="lg:hidden -mx-4 -mt-4 pb-8 space-y-4">
+        {/* 1. Mobile Sunset Gradient Hero Header */}
+        <div className="relative bg-gradient-to-b from-[#8b2d18] via-[#c65324] to-[#0a4d92] px-4 pt-4 pb-14 text-white overflow-hidden">
+          <div className="absolute inset-0 opacity-15 pointer-events-none flex items-end">
+            <svg className="w-full h-20" viewBox="0 0 400 100" fill="currentColor" preserveAspectRatio="none">
+              <rect x="10" y="35" width="28" height="65" />
+              <rect x="42" y="15" width="34" height="85" />
+              <rect x="80" y="45" width="22" height="55" />
+              <rect x="108" y="20" width="38" height="80" />
+              <rect x="152" y="48" width="28" height="52" />
+              <rect x="186" y="12" width="36" height="88" />
+              <rect x="228" y="38" width="24" height="62" />
+              <rect x="258" y="22" width="44" height="78" />
+              <rect x="308" y="52" width="28" height="48" />
+              <rect x="342" y="18" width="48" height="82" />
+            </svg>
+          </div>
+
+          <div className="relative z-10 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Link
+                href="/dashboard"
+                className="h-8 w-8 rounded-full bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/25 active:scale-95 transition-all"
+                aria-label="Kembali ke Dashboard"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </Link>
+              <div>
+                <h1 className="text-base font-bold text-white leading-tight">
+                  Utang & Piutang
+                </h1>
+                <p className="text-[11px] text-white/80 font-medium leading-none mt-0.5">
+                  {debts.length} Catatan Terdaftar
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => handleOpenAddModal('receivable')}
+                type="button"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-emerald-500 text-white font-bold text-xs shadow-md hover:bg-emerald-400 active:scale-95 transition-all"
+              >
+                <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
+                <span>Piutang</span>
+              </button>
+              <button
+                onClick={() => handleOpenAddModal('debt')}
+                type="button"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-amber-400 text-zinc-950 font-bold text-xs shadow-md hover:bg-amber-300 active:scale-95 transition-all"
+              >
+                <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
+                <span>Utang</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* 2. Floating Mobile Hero Summary Card */}
+        <div className="relative z-20 px-4 -mt-10">
+          <div className="rounded-2xl border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-lg shadow-zinc-950/5 dark:shadow-black/20 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+                Posisi Finansial Bersih
+              </span>
+              <span
+                className={cn(
+                  'text-xs font-bold font-mono px-2 py-0.5 rounded-full',
+                  metrics.netPosition >= 0
+                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                    : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                )}
+              >
+                {metrics.netPosition >= 0 ? 'Surplus Piutang' : 'Defisit Utang'}
+              </span>
+            </div>
+
+            <div className="text-2xl font-black font-mono tracking-tight text-zinc-950 dark:text-white">
+              {metrics.netPosition >= 0 ? '+' : ''}
+              {formatAmount(metrics.netPosition)}
+            </div>
+
+            {/* 2 Stats: Hak Tagih vs Kewajiban */}
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-zinc-100 dark:border-zinc-800/80">
+              <div className="flex items-center gap-2 p-2 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/40">
+                <div className="h-7 w-7 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                  <ArrowDownLeft className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium leading-none">
+                    Piutang (Hak Tagih)
+                  </p>
+                  <p className="text-xs font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-0.5 truncate">
+                    +{formatAmount(metrics.totalReceivables)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 p-2 rounded-xl bg-rose-50/60 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-900/40">
+                <div className="h-7 w-7 rounded-lg bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                  <ArrowUpRight className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium leading-none">
+                    Utang (Kewajiban)
+                  </p>
+                  <p className="text-xs font-bold font-mono text-rose-600 dark:text-rose-400 mt-0.5 truncate">
+                    -{formatAmount(metrics.totalDebts)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {metrics.overdueCount > 0 && (
+              <div className="flex items-center gap-1.5 p-2 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400 text-xs font-medium border border-orange-500/20">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                <span>{metrics.overdueCount} tagihan telah melewati batas tanggal jatuh tempo!</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 3. Horizontal Filter Pills */}
+        <div className="px-4">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+            {[
+              { id: 'all', label: 'Semua', count: debts.length, active: typeFilter === 'all' && statusFilter === 'all', onClick: () => { setTypeFilter('all'); setStatusFilter('all'); } },
+              { id: 'receivable', label: 'Piutang', count: debts.filter((d) => d.type === 'receivable').length, active: typeFilter === 'receivable', onClick: () => { setTypeFilter('receivable'); setStatusFilter('all'); } },
+              { id: 'debt', label: 'Utang', count: debts.filter((d) => d.type === 'debt').length, active: typeFilter === 'debt', onClick: () => { setTypeFilter('debt'); setStatusFilter('all'); } },
+              { id: 'unpaid', label: 'Belum Lunas', count: debts.filter((d) => getDebtStatus(d) === 'unpaid').length, active: statusFilter === 'unpaid', onClick: () => { setTypeFilter('all'); setStatusFilter('unpaid'); } },
+              { id: 'overdue', label: 'Jatuh Tempo', count: metrics.overdueCount, active: statusFilter === 'overdue', onClick: () => { setTypeFilter('all'); setStatusFilter('overdue'); } },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={tab.onClick}
+                className={cn(
+                  'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer',
+                  tab.active
+                    ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 shadow-xs'
+                    : 'bg-zinc-100 dark:bg-zinc-800/80 text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white'
+                )}
+              >
+                <span>{tab.label}</span>
+                <span
+                  className={cn(
+                    'text-[10px] px-1.5 py-0.2 rounded-full font-bold',
+                    tab.active
+                      ? 'bg-white/20 dark:bg-zinc-950/20'
+                      : 'bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300'
+                  )}
+                >
+                  {tab.count}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 4. Touch Search Bar */}
+        <div className="px-4">
+          <div className="relative">
+            <Input
+              placeholder="Cari nama pihak, telepon, catatan..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              leadingIcon={<Search className="h-3.5 w-3.5" />}
+              className="text-xs py-2 bg-white dark:bg-zinc-900 rounded-xl"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                aria-label="Hapus pencarian"
+                className="absolute right-2.5 top-2.5 text-zinc-400 hover:text-zinc-600"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* 5. Mobile Native Debt Card List */}
+        <div className="px-4 space-y-3">
+          {filteredDebts.length === 0 ? (
+            <div className="py-10 px-4 text-center rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 space-y-2.5">
+              <div className="h-10 w-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-400 flex items-center justify-center mx-auto">
+                <HandCoins className="h-5 w-5" />
+              </div>
+              <p className="text-xs font-semibold text-zinc-900 dark:text-white">
+                Tidak ada data utang / piutang yang cocok
+              </p>
+              <Button onClick={() => handleOpenAddModal('receivable')} size="sm" variant="primary">
+                Tambah Catatan
+              </Button>
+            </div>
+          ) : (
+            filteredDebts.map((item) => {
+              const status = getDebtStatus(item);
+              const remaining = Math.max(0, item.total_amount - item.paid_amount);
+              const progressPct =
+                item.total_amount > 0 ? Math.min(100, Math.round((item.paid_amount / item.total_amount) * 100)) : 0;
+              const dueInfo = getDueDateRelativeText(item.due_date);
+              const isReceivable = item.type === 'receivable';
+
+              return (
+                <div
+                  key={item.id}
+                  className="rounded-2xl border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-xs space-y-3"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={cn(
+                          'h-10 w-10 rounded-xl flex items-center justify-center shrink-0 font-bold text-xs shadow-xs',
+                          isReceivable
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                            : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
+                        )}
+                      >
+                        {isReceivable ? (
+                          <ArrowDownLeft className="h-5 w-5" />
+                        ) : (
+                          <ArrowUpRight className="h-5 w-5" />
+                        )}
+                      </div>
+
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-xs font-bold text-zinc-950 dark:text-white">
+                            {item.person_name}
+                          </h3>
+                          <Badge variant={isReceivable ? 'success' : 'danger'} size="sm">
+                            {isReceivable ? 'Piutang' : 'Utang'}
+                          </Badge>
+                        </div>
+                        {item.due_date && (
+                          <p
+                            className={cn(
+                              'text-[10px] font-medium mt-0.5',
+                              dueInfo.isOverdue
+                                ? 'text-rose-600 dark:text-rose-400 font-bold'
+                                : 'text-zinc-400'
+                            )}
+                          >
+                            Tenggat: {formatTanggal(item.due_date)} ({dueInfo.text})
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleOpenEditModal(item)}
+                        aria-label="Ubah"
+                        className="p-1 rounded text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setDebtToDelete(item)}
+                        aria-label="Hapus"
+                        className="p-1 rounded text-zinc-400 hover:text-rose-600"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Progress & Amounts */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-baseline justify-between text-xs">
+                      <span className="font-bold font-mono text-zinc-950 dark:text-white">
+                        {formatAmount(item.paid_amount)}
+                      </span>
+                      <span className="font-mono text-zinc-400 text-[11px]">
+                        Total: {formatAmount(item.total_amount)}
+                      </span>
+                    </div>
+
+                    <div className="w-full bg-zinc-100 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+                      <div
+                        className={cn(
+                          'h-full rounded-full transition-all duration-500',
+                          isReceivable ? 'bg-emerald-500' : 'bg-rose-500'
+                        )}
+                        style={{ width: `${progressPct}%` }}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-zinc-400 pt-0.5">
+                      <span>{progressPct}% terlunasi</span>
+                      <span className="font-mono font-medium text-zinc-700 dark:text-zinc-300">
+                        {status === 'paid' ? 'LUNAS' : `Sisa ${formatAmount(remaining)}`}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Action buttons */}
+                  {status !== 'paid' && (
+                    <div className="flex items-center gap-2 pt-1 border-t border-zinc-100 dark:border-zinc-800/80">
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        className="flex-1 text-xs font-semibold justify-center rounded-xl"
+                        onClick={() => setPaymentTargetDebt(item)}
+                      >
+                        <Coins className="h-3.5 w-3.5 mr-1" />
+                        <span>Catat Pembayaran</span>
+                      </Button>
+
+                      {isReceivable && item.phone_number && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="text-xs font-semibold rounded-xl text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/60"
+                          onClick={() => setWaReminderDebt(item)}
+                          title="Kirim pengingat WhatsApp"
+                        >
+                          <MessageSquare className="h-3.5 w-3.5 mr-1" />
+                          <span>WA</span>
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {/* ========================================================= */}
+      {/* DESKTOP VIEW (Filament UI Layout: visible on lg:) */}
+      {/* ========================================================= */}
+      <div className="hidden lg:block space-y-6">
+        {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold tracking-tight text-zinc-950 dark:text-white flex items-center gap-2">
@@ -748,6 +1087,7 @@ export default function DebtsPage() {
             })}
           </div>
         )}
+      </div>
       </div>
 
       {/* Debt Add/Edit Modal */}

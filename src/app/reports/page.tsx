@@ -13,11 +13,15 @@ import {
   ChevronDown,
   RotateCcw,
   FileText,
+  ArrowDownLeft,
+  ArrowUpRight,
+  BarChart3,
+  PieChart,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { useDompetKu } from '@/lib/store';
 import { calculateMonthlySummary } from '@/lib/calculations/finance';
-import { formatRupiah, formatBulan } from '@/lib/utils/formatters';
+import { formatRupiah, formatBulan, cn } from '@/lib/utils/formatters';
 import { IncomeExpenseChart } from '@/components/charts/income-expense-chart';
 import { CategoryPieChart } from '@/components/charts/category-pie-chart';
 
@@ -51,9 +55,10 @@ function getNextMonthKey(monthKey: string): string {
 }
 
 export default function ReportsPage() {
-  const { transactions, categories, activeMonth } = useDompetKu();
+  const { transactions, categories, activeMonth, formatAmount } = useDompetKu();
   const currentDefaultMonth = activeMonth || '2026-09';
   const [period, setPeriod] = useState<string>(currentDefaultMonth);
+  const [mobileTab, setMobileTab] = useState<'overview' | 'composition' | 'breakdown'>('overview');
 
   // Kumpulkan seluruh bulan unik yang ada di transaksi dan bulan 2026
   const monthOptions = useMemo(() => {
@@ -126,6 +131,7 @@ export default function ReportsPage() {
   const totalSavings = totalIncome - totalExpense;
   const savingsRate =
     totalIncome > 0 ? Math.max(0, ((totalIncome - totalExpense) / totalIncome) * 100) : 0;
+  const summary = { savings: totalSavings, income: totalIncome, expense: totalExpense };
 
   // Distribusi Pengeluaran
   const categoryBreakdown = useMemo(() => {
@@ -209,7 +215,234 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-5">
-      {/* Filament Page Header & Filter Toolbar */}
+      {/* ========================================================= */}
+      {/* MOBILE VIEW (BRImo-style Responsive Design: visible on < lg) */}
+      {/* ========================================================= */}
+      <div className="lg:hidden -mx-4 -mt-4 pb-8 space-y-4">
+        {/* 1. Mobile Sunset Gradient Hero Header */}
+        <div className="relative bg-gradient-to-b from-[#8b2d18] via-[#c65324] to-[#0a4d92] px-4 pt-4 pb-14 text-white overflow-hidden">
+          <div className="absolute inset-0 opacity-15 pointer-events-none flex items-end">
+            <svg className="w-full h-20" viewBox="0 0 400 100" fill="currentColor" preserveAspectRatio="none">
+              <rect x="10" y="35" width="28" height="65" />
+              <rect x="42" y="15" width="34" height="85" />
+              <rect x="80" y="45" width="22" height="55" />
+              <rect x="108" y="20" width="38" height="80" />
+              <rect x="152" y="48" width="28" height="52" />
+              <rect x="186" y="12" width="36" height="88" />
+              <rect x="228" y="38" width="24" height="62" />
+              <rect x="258" y="22" width="44" height="78" />
+              <rect x="308" y="52" width="28" height="48" />
+              <rect x="342" y="18" width="48" height="82" />
+            </svg>
+          </div>
+
+          <div className="relative z-10 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Link
+                href="/dashboard"
+                className="h-8 w-8 rounded-full bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/25 active:scale-95 transition-all"
+                aria-label="Kembali ke Dashboard"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </Link>
+              <div>
+                <h1 className="text-base font-bold text-white leading-tight">
+                  Laporan Keuangan
+                </h1>
+                <p className="text-[11px] text-white/80 font-medium leading-none mt-0.5">
+                  {periodLabel}
+                </p>
+              </div>
+            </div>
+
+            {/* Quick Month Navigator */}
+            <div className="flex items-center gap-1 bg-white/15 backdrop-blur-md border border-white/20 rounded-full p-0.5">
+              <button
+                type="button"
+                onClick={handlePrevMonth}
+                disabled={isCumulative}
+                className="h-7 w-7 rounded-full flex items-center justify-center text-white hover:bg-white/20 disabled:opacity-30 cursor-pointer"
+                title="Bulan Lalu"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={handleNextMonth}
+                disabled={isCumulative}
+                className="h-7 w-7 rounded-full flex items-center justify-center text-white hover:bg-white/20 disabled:opacity-30 cursor-pointer"
+                title="Bulan Depan"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* 2. Floating Mobile Hero Summary Card */}
+        <div className="relative z-20 px-4 -mt-10">
+          <div className="rounded-2xl border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-lg shadow-zinc-950/5 dark:shadow-black/20 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+                Surplus / Defisit Arus Kas
+              </span>
+              <span
+                className={cn(
+                  'text-xs font-bold font-mono px-2 py-0.5 rounded-full',
+                  summary.savings >= 0
+                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                    : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                )}
+              >
+                {summary.savings >= 0 ? 'Surplus Kas' : 'Defisit Kas'}
+              </span>
+            </div>
+
+            <div className="text-2xl font-black font-mono tracking-tight text-zinc-950 dark:text-white">
+              {summary.savings >= 0 ? '+' : ''}
+              {formatAmount(summary.savings)}
+            </div>
+
+            {/* Income & Expense Breakdown */}
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-zinc-100 dark:border-zinc-800/80">
+              <div className="flex items-center gap-2 p-2 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/40">
+                <div className="h-7 w-7 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                  <ArrowDownLeft className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium leading-none">
+                    Pemasukan
+                  </p>
+                  <p className="text-xs font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-0.5 truncate">
+                    +{formatAmount(totalIncome)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 p-2 rounded-xl bg-rose-50/60 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-900/40">
+                <div className="h-7 w-7 rounded-lg bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                  <ArrowUpRight className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium leading-none">
+                    Pengeluaran
+                  </p>
+                  <p className="text-xs font-bold font-mono text-rose-600 dark:text-rose-400 mt-0.5 truncate">
+                    -{formatAmount(totalExpense)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+              <span>Rasio Tabungan (Savings Rate):</span>
+              <span className="font-bold font-mono text-amber-600 dark:text-amber-400">
+                {savingsRate.toFixed(1)}%
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* 3. Horizontal Filter Tabs */}
+        <div className="px-4">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+            {[
+              { id: 'overview', label: 'Grafik Arus Kas' },
+              { id: 'composition', label: 'Komposisi Belanja' },
+              { id: 'breakdown', label: 'Rincian Kategori' },
+            ].map((tab) => {
+              const isActive = mobileTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setMobileTab(tab.id as typeof mobileTab)}
+                  className={cn(
+                    'px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer',
+                    isActive
+                      ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 shadow-xs'
+                      : 'bg-zinc-100 dark:bg-zinc-800/80 text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white'
+                  )}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 4. Active Tab Content for Mobile */}
+        <div className="px-4 space-y-3">
+          {mobileTab === 'overview' && (
+            <div className="rounded-2xl border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-xs space-y-3">
+              <h3 className="text-xs font-bold text-zinc-950 dark:text-white">
+                Perbandingan Arus Kas
+              </h3>
+              <IncomeExpenseChart data={comparisonChartData} />
+            </div>
+          )}
+
+          {mobileTab === 'composition' && (
+            <div className="rounded-2xl border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-xs space-y-3">
+              <h3 className="text-xs font-bold text-zinc-950 dark:text-white">
+                Distribusi Belanja ({periodLabel})
+              </h3>
+              <CategoryPieChart data={pieChartData} />
+            </div>
+          )}
+
+          {mobileTab === 'breakdown' && (
+            <div className="space-y-2.5">
+              {categoryBreakdown.length === 0 ? (
+                <div className="py-8 px-4 text-center rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs text-zinc-400">
+                  Tidak ada pengeluaran pada periode {periodLabel}.
+                </div>
+              ) : (
+                categoryBreakdown.map((item) => (
+                  <div
+                    key={item.id}
+                    className="rounded-xl border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3.5 shadow-xs space-y-2"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <span
+                          className="w-3 h-3 rounded-full shrink-0"
+                          style={{ backgroundColor: item.color }}
+                        />
+                        <span className="text-xs font-bold text-zinc-950 dark:text-white">
+                          {item.name}
+                        </span>
+                      </div>
+                      <span className="text-xs font-bold font-mono text-zinc-950 dark:text-white">
+                        {formatRupiah(item.amount)}
+                      </span>
+                    </div>
+
+                    <div className="w-full bg-zinc-100 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${Math.min(100, item.percentage)}%`,
+                          backgroundColor: item.color,
+                        }}
+                      />
+                    </div>
+
+                    <div className="flex justify-end text-[10px] text-zinc-400 font-mono">
+                      <span>{item.percentage.toFixed(1)}% dari total belanja</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ========================================================= */}
+      {/* DESKTOP VIEW (Filament UI Layout: visible on lg:) */}
+      {/* ========================================================= */}
+      <div className="hidden lg:block space-y-5">
+        {/* Filament Page Header & Filter Toolbar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-200/80 dark:border-zinc-800">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -475,6 +708,7 @@ export default function ReportsPage() {
           </table>
         </div>
       </Card>
+      </div>
     </div>
   );
 }
